@@ -1,77 +1,129 @@
-# Linked Signal
+# 1. linkedSignal
 
-LinkedSignal là một tín hiệu có thể ghi phản ứng với các thay đổi trong tín hiệu nguồn và có thể tự đặt lại dựa trên giá trị được tính toán.
+## Mô tả
+
+`linkedSignal` là một Signal mới trong Angular 19 — kết hợp giữa `signal` (có thể ghi) và `computed` (reactive). Nó cho phép tạo một **writable signal** tự động reset giá trị khi source signal thay đổi, nhưng vẫn có thể set thủ công.
+
+## Vấn đề giải quyết
+
+Trước Angular 19, nếu bạn muốn một derived value có thể override:
+- `computed()` → **read-only**, không thể set thủ công
+- `signal()` → **không tự động recompute** khi source thay đổi
+
+`linkedSignal()` là cầu nối hoàn hảo giữa hai khái niệm này.
+
+## Cú pháp
 
 ```ts
-export declare function linkedSignal<S, D>(options: {
-    source: () => S;
-    computation: (source: NoInfer<S>, previous?: {
-        source: NoInfer<S>;
-        value: NoInfer<D>;
-    }) => D;
-    equal?: ValueEqualityFn<NoInfer<D>>;
-}): WritableSignal<D>;
+linkedSignal<S, D>({
+  source: () => S,
+  computation: (source, previous?) => D,
+  equal?: ValueEqualityFn<D>
+}): WritableSignal<D>
 ```
-Giá trị tín hiệu ban đầu được tính toán bằng cách sử dụng chức năng `computation`, giá trị tín hiệu có thể được thay đổi thủ công bằng cách sử dụng phương thức SET, nhưng khi giá trị tín hiệu 'nguồn của nguồn thay đổi, giá trị tín hiệu được liên kết sẽ được tính toán lại bằng phương thức `computation`
 
-Example:
+## Files trong project
+
+### `src/app/app.component.ts` — Component chính
 
 ```ts
-protected readonly colorOptions = signal<Color[]>([{
-    id: 1,
-    name: 'Red',
-  }, {
-    id: 2,
-    name: 'Green',
-  }, {
-    id: 3,
-    name: 'Blue',
-  }]);
+import { Component, linkedSignal, signal } from '@angular/core';
 
-  protected favoriteColorId = linkedSignal<Color[], number | null>({
+interface Color {
+  id: number;
+  name: string;
+}
+
+@Component({
+  selector: 'app-root',
+  imports: [RouterOutlet],
+  templateUrl: './app.component.html',
+})
+export class AppComponent {
+  // Source signal — danh sách màu sắc
+  readonly colorOptions = signal<Color[]>([
+    { id: 1, name: 'Red' },
+    { id: 2, name: 'Green' },
+    { id: 3, name: 'Blue' },
+  ]);
+
+  // linkedSignal — ID màu yêu thích
+  favoriteColorId = linkedSignal<Color[], number | null>({
     source: this.colorOptions,
     computation: (source, previous) => {
-      if(previous?.value) {
-        return source.some(color => color.id === previous.value) ? previous.value : null;
+      // Nếu trước đó đã chọn → giữ nguyên nếu vẫn tồn tại
+      if (previous?.value) {
+        return source.some(color => color.id === previous.value)
+          ? previous.value
+          : null;
       }
       return null;
     }
   });
 
-  protected onFavoriteColorChange(colorId: number): void {
+  // Set thủ công — WritableSignal
+  onFavoriteColorChange(colorId: number): void {
     this.favoriteColorId.set(colorId);
   }
 
-  protected changeColorOptions(): void {
+  // Thay đổi source → linkedSignal tự động recompute
+  changeColorOptions(): void {
     this.colorOptions.set([
-      {
-        id: 1,
-        name: 'Red',
-      },
-      {
-        id: 4,
-        name: 'Yellow',
-      },
-      {
-        id: 5,
-        name: 'Orange',
-      }
-    ])
-  }}
+      { id: 1, name: 'Red' },
+      { id: 4, name: 'Yellow' },
+      { id: 5, name: 'Orange' },
+    ]);
+  }
+}
 ```
 
-Chúng tôi có các bảng màu tín hiệu, lưu trữ một danh sách các màu có thể chọn người dùng (mỗi màu có ID và tên). Chúng tôi cũng có một tín hiệu được liên kết gọi là favoriteColorId, đại diện cho người dùng đã chọn màu từ danh sách.
+### `src/app/app.component.html` — Template
 
-Giá trị ban đầu của tín hiệu này là kết quả của hàm computation, sẽ là null (vì trạng thái trước của tín hiệu được liên kết không được xác định). Tín hiệu được liên kết, giống như bất kỳ tín hiệu có thể ghi nào khác, cung cấp một phương thức thiết lập để đặt ID của màu người dùng đã chọn (xem hàm onFavoriteColorChange).
+```html
+<div>
+  <h3>Color Options:</h3>
+  @for (color of colorOptions(); track color.id) {
+    <button (click)="onFavoriteColorChange(color.id)">
+      {{ color.name }}
+    </button>
+  }
+</div>
 
-Giả sử rằng sau khi chọn một màu vì một số lý do, danh sách các màu có sẵn để lựa chọn được thay đổi (xem Phương pháp ChangeColorOptions). Kết quả của việc thay đổi giá trị của tín hiệu màu, giá trị của tín hiệu được liên kết yêu thích được tính toán lại bằng phương pháp tính toán. 
+<p>Selected: {{ favoriteColorId() }}</p>
+<button (click)="changeColorOptions()">Change Options</button>
+```
 
-Trong ví dụ trên, nếu màu được chọn cũng nằm trong danh sách mới các màu có sẵn, giá trị tín hiệu vẫn giữ nguyên. Mặt khác, nếu màu được chọn trước đó không có trong danh sách mới, giá trị được đặt thành NULL.
+## Cách hoạt động chi tiết
+
+```
+Bước 1: colorOptions = [Red(1), Green(2), Blue(3)]
+         → favoriteColorId = null (chưa chọn)
+
+Bước 2: onFavoriteColorChange(3) → set Blue
+         → favoriteColorId = 3
+
+Bước 3: changeColorOptions() → [Red(1), Yellow(4), Orange(5)]
+         → Blue(3) không còn trong source
+         → computation() → return null (auto reset!)
+```
+
+## So sánh với các API khác
+
+| Feature | signal() | computed() | linkedSignal() |
+|---------|----------|------------|----------------|
+| Có thể ghi | ✅ | ❌ | ✅ |
+| Tự động recompute | ❌ | ✅ | ✅ |
+| Track dependency | ❌ | ✅ | ✅ |
+| Override thủ công | ✅ | ❌ | ✅ |
+
+## Khi nào dùng linkedSignal?
+
+- **Form state** cần reset khi source thay đổi (ví dụ: danh sách item thay đổi → reset selection)
+- **Derived state** cần override thủ công
+- **UI state** phụ thuộc data nhưng user có thể customize
 
 ## Reference
 
-https://angular.love/angular-19-whats-new
-
-https://blog.angular.dev/meet-angular-v19-7b29dfd05b84
-
-https://medium.com/@rajat29gupta/highlight-key-new-features-in-angular-19-de77981756c7
+- [Angular 19 Release — linkedSignal](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
+- [What's New in Angular 19](https://angular.love/angular-19-whats-new)
+- [linkedSignal API Docs](https://angular.dev/api/core/linkedSignal)

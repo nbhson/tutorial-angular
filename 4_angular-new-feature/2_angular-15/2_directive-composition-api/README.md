@@ -1,8 +1,12 @@
-# Directive composition API
+# Directive Composition API (Angular 15)
 
-The directive composition API brings code reuse to another level! This feature was inspired by the most popular feature request on GitHub asking for the functionality to add directives to a host element.
+> Directive Composition API cho phép combine multiple directives trên host element, tương tự multiple inheritance trong OOP.
 
-The directive composition API enables developers to enhance host elements with directives and equips Angular with a powerful code reuse strategy, that’s only possible thanks to our compiler. The directive composition API only works with standalone directives.
+## Tổng quan
+
+Trước Angular 15, mỗi element chỉ có thể apply một directive. Directive Composition API cho phép compose nhiều directives trên cùng host element.
+
+## Ví dụ 1: Basic Composition
 
 ```ts
 @Component({
@@ -16,26 +20,13 @@ The directive composition API enables developers to enhance host elements with d
 class MatMenu {}
 ```
 
-In the code snippet above we enhance MatMenu with two directives: `HasColor` and `CdkMenu`. MatMenu reuses all the inputs, outputs, and associated logic with `HasColor` and only the logic and the selected inputs from `CdkMenu`.
+Component `MatMenu` kế thừa behavior từ:
+- `HasColor` – color management
+- `CdkMenu` – menu behavior
 
-> Kỹ thuật này có thể nhắc bạn về nhiều đặc điểm hoặc kế thừa trong một số ngôn ngữ lập trình, với điểm khác biệt là chúng tôi có cơ chế giải quyết xung đột tên và cơ chế này có thể áp dụng cho giao diện người dùng gốc.
+## Ví dụ 2: Selective Inputs/Outputs
 
-Link: <https://www.telerik.com/blogs/use-powerful-directive-composition-api-angular-15-kendo-ui>
-
-## Adding directives to a component
-
-```TS
-@Component({
-  selector: 'admin-menu',
-  template: 'admin-menu.html',
-  hostDirectives: [MenuBehavior],
-})
-export class AdminMenu { }
-```
-
-## Including inputs and outputs
-
-```TS
+```ts
 @Component({
   selector: 'admin-menu',
   template: 'admin-menu.html',
@@ -49,8 +40,11 @@ export class AdminMenu { }
 ```
 
 ```html
+<!-- Usage -->
 <admin-menu menuId="top-menu" (menuClosed)="logMenuClosed()">
 ```
+
+## Ví dụ 3: Rename Inputs/Outputs
 
 ```ts
 @Component({
@@ -58,36 +52,95 @@ export class AdminMenu { }
   template: 'admin-menu.html',
   hostDirectives: [{
     directive: MenuBehavior,
-    inputs: ['menuId: id'],
-    outputs: ['menuClosed: closed'],
+    inputs: ['menuId: id'],        // Rename menuId → id
+    outputs: ['menuClosed: closed'], // Rename menuClosed → closed
   }],
 })
 export class AdminMenu { }
 ```
 
 ```html
+<!-- Using renamed inputs/outputs -->
 <admin-menu id="top-menu" (closed)="logMenuClosed()">
 ```
 
-### Adding directives to another directive
-
+## Ví dụ 4: Compose Directives với Directives
 
 ```ts
-@Directive({...})
-export class Menu { }
+// Base directives
+@Directive({ selector: '[appTooltip]', standalone: true })
+export class TooltipDirective { }
 
-@Directive({...})
-export class Tooltip { }
+@Directive({ selector: '[appMenu]', standalone: true })
+export class MenuDirective { }
 
-// MenuWithTooltip can compose behaviors from multiple other directives
+// Compose
 @Directive({
-  hostDirectives: [Tooltip, Menu],
+  selector: '[appMenuWithTooltip]',
+  hostDirectives: [TooltipDirective, MenuDirective],
+  standalone: true
 })
-export class MenuWithTooltip { }
+export class MenuWithTooltipDirective { }
 
-// CustomWidget can apply the already-composed behaviors from MenuWithTooltip
+// Re-compose
 @Directive({
-  hostDirectives: [MenuWithTooltip],
+  selector: '[appSpecialMenu]',
+  hostDirectives: [MenuWithTooltipDirective],
+  standalone: true
 })
-export class SpecializedMenuWithTooltip { }
+export class SpecialMenuDirective { }
 ```
+
+## Ví dụ 5: Selective Inputs Exposing
+
+```ts
+@Component({
+  selector: 'app-tooltip-wrapper',
+  hostDirectives: [{
+    directive: TooltipDirective,
+    inputs: ['tooltipText: text'],  // Chỉ expose text input
+    outputs: ['tooltipShown: shown']
+  }],
+  template: `<ng-content></ng-content>`
+})
+export class TooltipWrapperComponent { }
+```
+
+```html
+<!-- Chỉ có thể set text, không set position từ ngoài -->
+<app-tooltip-wrapper text="Hello!">
+  <span>Hover me</span>
+</app-tooltip-wrapper>
+```
+
+## Flow Diagram
+
+```
+Traditional (single directive):
+  Component → Directive A → Host Element
+
+Composition (multiple directives):
+  Component → Directive A ─┐
+                          ├→ Host Element
+                Directive B ─┘
+```
+
+## So sánh với Inheritance
+
+| Feature | Class Inheritance | Directive Composition |
+|---------|-------------------|----------------------|
+| Coupling | Tight | Loose |
+| Reuse | Single parent | Multiple sources |
+| Input conflict | Runtime error | Compiler resolves |
+| Flexibility | Limited | High |
+
+## Best Practices
+
+1. **Chỉ expose needed inputs** – Không expose tất cả
+2. **Rename để tránh conflict** – `menuId: id`
+3. **Compose theo behavior** – Mỗi directive = 1 concern
+4. **Sử dụng standalone directives** – Bắt buộc cho hostDirectives
+
+---
+
+**Summary**: Directive Composition API là paradigm mới cho code reuse trong Angular. Cho phép combine multiple behaviors trên host element, tương tự multiple inheritance nhưng với conflict resolution từ compiler.

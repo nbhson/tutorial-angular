@@ -1,119 +1,130 @@
-# Signals
+# Signals Small Example (Angular 16)
 
-`ng generate environments`: tạo các file environments
+> Ví dụ thực tế về cách sử dụng Signals trong Angular 16 - Writable Signals, Computed, Effects.
 
-`ng generate @angular/core:standalone`: migrate project to standalone
+## Helpful CLI Commands
+
+```bash
+# Tạo các file environments
+ng generate environments
+
+# Migrate project to standalone
+ng generate @angular/core:standalone
+```
 
 ## Signals là gì?
 
-> `Signals` là lớp bao bọc xung quanh một giá trị có thể thông báo cho người dùng quan tâm khi giá trị đó thay đổi
+> `Signals` là lớp bao bọc xung quanh một giá trị có thể thông báo cho người dùng quan tâm khi giá trị đó thay đổi.
 
-### Writable signals
+## Writable Signals
 
 ```ts
+// Tạo signal với giá trị ban đầu
 const count = signal(0);
-console.log('The count is: ' + count()); // Signals are getter functions - calling them reads their value.
+
+// Đọc giá trị - gọi signal như function
+console.log('The count is: ' + count());
 ```
 
-- To change the value of a writable signal, you can either `.set()` it directly:
+### Cách thay đổi giá trị
 
 ```ts
-this.count.set(3); // new value (phải tuân thủ theo type ban đầu - ví dụ {name: string, age: number})
-```
+// 1. set() - đặt giá trị mới trực tiếp (phải tuân thủ type ban đầu)
+this.count.set(3);
 
-- or use the `.update()` operation to compute a new value from the previous one:
+// 2. update() - tính từ giá trị trước đó
+this.count.update(value => value + 1);
 
-```ts
-this.count.update(value => value + 1); // new value (dựa trên value cũ/previous)
-
+// 3. update() với object
 this.object.update(pre => {
-    return { name: 'Son', age: 18 }
+  return { name: 'Son', age: 18 };
 });
 ```
 
-- or use the `.mutate()` linh động, có thể update tùy thích không cần dựa vào object/type ban đầu
+## Computed Signals
 
-```ts
- this.signalObject.mutate(v => v.age = 18); // chỉ muốn change age
-```
-
-## Computed signals
-
-- Nếu gắn `computed` cho một variable, điều này sẽ làm biến đó phụ thuộc vào `signal` được khai báo trong `computed` 
-- Bất kỳ khi nào `signal change` thì variable có `computed` phụ thuộc vào `signal` cũng sẽ change theo
+Khi signal thay đổi, computed variable tự động cập nhật theo:
 
 ```ts
 const count: WritableSignal<number> = signal(0);
 const doubleCount: Signal<number> = computed(() => count() * 2);
+
+// count = 1 → doubleCount = 2
+// count = 5 → doubleCount = 10
 ```
 
 ## Effects
 
-- Effect dùng để theo dõi `signal`, bất cứ khi nào signal change, effect sẽ được kích hoạt
+Effect theo dõi signal và tự động chạy lại khi signal thay đổi:
 
 ```ts
-// theo dõi đồng thời 
+// Theo dõi đồng thời nhiều signals
 effect(() => {
-    console.log(Date.now(), this.signalInput(), this.signalCount());
-})
+  console.log(Date.now(), this.signalInput(), this.signalCount());
+});
 
-// hoặc theo dõi riêng lẽ
-
+// Hoặc theo dõi riêng lẻ
 effect(() => {
   console.log(Date.now(), this.signalInput());
-})
+});
+
 effect(() => {
   console.log(Date.now(), this.signalCount());
-})
+});
 ```
 
-## Advanced topics
+## Signals & OnPush Change Detection
 
-- Nếu dử dụng ` changeDetection: ChangeDetectionStrategy.OnPush` thì khi sử dụng signal nó sẽ tự động change detect 1 lần. Nếu không phải sử dụng `ChangeDetectorRef` để kích hoạt sự thay đổi
-
-```ts
-
-// Ví dụ cho call api
-
-@Component({
-  selector: 'app-simple-signals',
-  changeDetection: ChangeDetectionStrategy.OnPush 
-  ...
-})
-
-signalBoolean = true;
-
-updateBoolean() {
-    setTimeout(() => {
-      this.signalBoolean = !this.signalBoolean;
-    }, 500); // sau 500ms thì UI sẽ ko render ra đúng
-}
-
-// bắt buộc phải manual notify
-
-constructor(private cdf: ChangeDetectorRef) { }
-updateBoolean() {
-    setTimeout(() => {
-      this.signalBoolean = !this.signalBoolean;
-      this.cdf.markForCheck(); // phải dùng markForCheck
-    }, 500); 
-}
-```
-
-- Nhưng nếu sử dụng signal nó sẽ tự động giải quyết vấn đề này (không cần detectChange/markForCheck.. khi dùng OnPush):
+### Without Signals (cũ)
 
 ```ts
 @Component({
   selector: 'app-simple-signals',
-  changeDetection: ChangeDetectionStrategy.OnPush
-  ...
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<p>{{ signalBoolean }}</p>`
 })
+export class SimpleSignalsComponent {
+  signalBoolean = true;
 
-signalBoolean = signal<boolean>(false);
+  // ❌ UI không render đúng sau 500ms!
+  updateBoolean() {
+    setTimeout(() => {
+      this.signalBoolean = !this.signalBoolean;
+    }, 500);
+  }
 
-updateBoolean() {
-  this.signalBoolean.update(previousValue => !previousValue); // tự động markForCheck
+  // ✅ Phải dùng markForCheck thủ công
+  constructor(private cdr: ChangeDetectorRef) {}
+
+  updateBooleanFixed() {
+    setTimeout(() => {
+      this.signalBoolean = !this.signalBoolean;
+      this.cdr.markForCheck();  // Manual!
+    }, 500);
+  }
 }
 ```
 
-![image](https://github.com/user-attachments/assets/40f55f5a-1fde-43af-ae2e-fd0faffc025e)
+### With Signals (mới)
+
+```ts
+@Component({
+  selector: 'app-simple-signals',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<p>{{ signalBoolean() }}</p>`
+})
+export class SimpleSignalsComponent {
+  signalBoolean = signal<boolean>(false);
+
+  // ✅ Tự động update UI - không cần markForCheck!
+  updateBoolean() {
+    this.signalBoolean.update(previousValue => !previousValue);
+  }
+}
+```
+
+**Kết luận:** Với Signals + OnPush, không cần `ChangeDetectorRef.markForCheck()` nữa. Angular tự động biết khi nào cần re-render.
+
+---
+
+**Summary**: Signals giúp loại bỏ boilerplate `markForCheck()` trong OnPush components. Kết hợp với computed và effect, Signals tạo nên reactive data flow đơn giản và hiệu quả hơn RxJS cho UI state.

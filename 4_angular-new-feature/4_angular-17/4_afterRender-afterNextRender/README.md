@@ -1,93 +1,229 @@
-# Exploring Angular’s afterRender and afterNextRender Hooks
+# `afterRender` / `afterNextRender`
 
-Angular cung cấp các hook vòng đời mạnh mẽ để tương tác thành phần, nhưng đôi khi bạn cần làm việc trực tiếp với DOM sau khi hiển thị. Đây là nơi afterRender và afterNextRender có ích.
+## Tổng quan
 
-## Understanding the Need
+Angular 17 giới thiệu hai lifecycle hooks mới — `afterRender` và `afterNextRender` — giúp truy cập DOM sau khi render một cách an toàn. Đây là sự thay thế hiện đại cho `ngAfterViewInit`, hỗ trợ phases (giai đoạn) để tách biệt đọc/ghi DOM, tránh layout thrashing.
 
-Hãy tưởng tượng bạn muốn tích hợp một thư viện biểu đồ của bên thứ ba dựa vào các phần tử DOM để trực quan. Các hook vòng đời tiêu chuẩn có thể không lý tưởng cho kịch bản này, vì thư viện có thể yêu cầu DOM phải được đặt đầy đủ trước khi khởi tạo. Đây là nơi afterRender và afterNextRender cung cấp giải pháp.
+## Cấu trúc files
 
-## Key Differences
+```
+4_afterRender-afterNextRender/
+├── src/
+│   ├── app/
+│   │   ├── app.component.html    # Template demo — input với visual feedback
+│   │   ├── app.component.ts      # Component dùng afterRender với phases
+│   │   ├── app.component.scss    # Styles
+│   │   ├── app.config.ts         # App configuration
+│   │   └── app.routes.ts         # Routes
+│   ├── main.ts
+│   ├── styles.scss
+│   └── index.html
+├── angular.json
+└── package.json
+```
 
-Mặc dù cả hai hook đều xử lý các tác vụ sau khi kết xuất, nhưng có một sự khác biệt quan trọng:
+## Chi tiết từng file
 
-- afterRender: cho phép bạn đăng ký một lệnh gọi lại thực thi sau mỗi chu kỳ kết xuất.
-- afterNextRender: đăng ký một lệnh gọi lại thực thi CHỈ MỘT LẦN sau chu kỳ kết xuất tiếp theo, khi DOM được tải
+### `src/app/app.component.ts` — AfterRender với Phases
 
-![alt text](image.png)
+Demonstrates `afterRender` với 3 phases: `write`, `mixedReadWrite`, `read`:
 
-## Choosing the Right Hook
+```ts
+import { afterRender, Component, computed, ElementRef, signal, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { animationFrameScheduler, interval, Subscription, take } from 'rxjs';
 
-- Sử dụng `afterNextRender` cho các thao tác DOM một lần như khởi tạo thư viện của bên thứ ba hoặc thiết lập trình quan sát phần tử.
-- Sử dụng `afterRender` cho các tình huống mà bạn cần phản ứng với các thay đổi DOM thường xuyên, chẳng hạn như tự động điều chỉnh kích thước phần tử dựa trên nội dung.
-  
-Hãy nhớ rằng: việc sử dụng afterRender thường xuyên có thể ảnh hưởng đến hiệu suất, vì vậy hãy sử dụng nó một cách thận trọng. VAnd they both must be used inside an injection context. **Các móc này không hoạt động trên SSR hoặc kết xuất trước.**
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.scss',
+  imports: [FormsModule],
+})
+export class AppComponent {
+  secretWord = signal('angular18');
+  word = signal('');
+  success = computed(() => this.secretWord() === this.word());
+  wordBlock = viewChild<ElementRef>('wordBlock');
+  subscriptions: Subscription[] = [];
 
-## Order of Phases
+  constructor() {
+    afterRender({
+      write: () => {
+        // Ghi vào DOM — thay đổi background color
+        this.wordBlock()!.nativeElement.style.backgroundColor = this.success()
+          ? 'green'
+          : 'red';
 
-![alt text](image-1.png)
+        // Animation với RxJS
+        this.subscriptions.push(
+          interval(0, animationFrameScheduler)
+            .pipe(take(10))
+            .subscribe({
+              next: (percentage) => {
+                this.wordBlock()!.nativeElement.style.width = percentage + '%';
+              },
+              complete: () => {
+                this.subscriptions.forEach((subs) => subs.unsubscribe());
+              }
+            })
+        );
+      },
+      read: (data) => {
+        // Đọc DOM sau khi ghi
+        console.log(data);
+      },
+      mixedReadWrite: (data) => {
+        // Đọc và ghi xen kẽ
+        console.log(data);
+      },
+    });
+  }
+}
+```
 
-Angular xác định các giai đoạn riêng biệt để truy cập DOM được kiểm soát trong quá trình kết xuất:
+**Giải thích:**
+- `write` phase — Ghi vào DOM (thay đổi style, thêm/xóa elements)
+- `read` phase — Đọc DOM sau khi ghi (lấy measurements)
+- `mixedReadWrite` phase — Đọc và ghi xen kẽ (sử dụng thận trọng)
+- Thứ tự thực thi: `earlyRead` → `write` → `mixedReadWrite` → `read`
 
-- EarlyRead: cho phép đọc dữ liệu từ DOM trước các thao tác ghi tiếp theo.
-- Write: cho phép ghi dữ liệu vào DOM (tránh đọc trong giai đoạn này).
-- MixedReadWrite: cho phép cả đọc và viết, nhưng sử dụng nó một cách thận trọng do các nhược điểm tiềm ẩn về hiệu suất.
-- Read: cho phép đọc dữ liệu từ DOM (tránh ghi trong giai đoạn này).
+### `src/app/app.component.html` — Template Demo
 
-## Callback Execution Order 
+Template demo minh họa input với visual feedback qua afterRender:
 
-Các callback trong cùng một giai đoạn thực hiện theo thứ tự chúng được đăng ký.
+```html
+<h1 style="margin-left: 10px;">
+    Angular v18.1.0-next.2: afterNextRender & afterRender new Design
+</h1>
 
-Callbacks run after each render cycle, following this specific phase order:
+<div class="word-block" #wordBlock>
+    <input
+        type="text"
+        class="beautiful-input"
+        [ngModel]="word()"
+        (ngModelChange)="word.set($event);"
+        placeholder="Find the secret word!"
+    >
+</div>
 
-1. earlyRead
-2. write
-3. mixedReadWrite
-4. read
+<p>
+  {{word()}} - {{success()}}
+</p>
+```
 
-## During initialization (from angular.dev)
+**Cách hoạt động:**
+1. User nhập text vào input → `word` signal cập nhật
+2. `success` computed tự động so sánh với `secretWord`
+3. `afterRender` callback chạy sau mỗi render cycle
+4. Background color chuyển sang `green` khi đúng, `red` khi sai
+5. Width animation chạy mượt mà qua RxJS `interval`
 
-![alt text](image-2.png)
+## So sánh `afterRender` vs `afterNextRender`
 
-## Subsequent updates (from angular.dev)
+| Aspect | `afterRender` | `afterNextRender` |
+|--------|---------------|-------------------|
+| Số lần chạy | Mỗi render cycle | Chỉ 1 lần (render tiếp theo) |
+| Use case | Reactive DOM updates | Library init, setup observers |
+| Performance | Sử dụng thận trọng | An toàn cho mọi use case |
+| Ví dụ | Auto-resize elements | Initialize Chart.js, IntersectionObserver |
 
-![alt text](image-3.png)
+## Các phases trong `afterRender`
 
-## Parameter Passing Between Phases
+```
+Thứ tự thực thi: earlyRead → write → mixedReadWrite → read
+```
 
-Lệnh gọi lại giai đoạn đầu tiên (earlyRead) không nhận được tham số.
+| Phase | Mô tả | Lưu ý |
+|-------|-------|-------|
+| `earlyRead` | Đọc DOM trước khi ghi | Dùng để lấy measurements |
+| `write` | Ghi vào DOM | Không đọc DOM trong phase này |
+| `mixedReadWrite` | Đọc và ghi xen kẽ | Sử dụng thận trọng |
+| `read` | Đọc DOM sau khi ghi | Không ghi trong phase này |
 
-Mỗi lệnh gọi lại giai đoạn tiếp theo nhận giá trị trả về của lệnh gọi lại giai đoạn đã chạy trước đó dưới dạng tham số. Điều này cho phép phối hợp công việc trên nhiều giai đoạn.
+### Parameter Passing Between Phases
 
-![alt text](image-4.png)
+```ts
+afterRender({
+  earlyRead: () => {
+    // Không nhận tham số từ phase trước
+    return this.measureElement();
+  },
+  write: (measurement) => {
+    // Nhận return value từ earlyRead
+    this.applyStyles(measurement);
+  },
+  read: (previousResult) => {
+    // Nhận return value từ write
+    return this.verifyUpdate();
+  },
+});
+```
 
-## Profitable Examples
+## Use Cases thực tế
 
-Dưới đây là một số trường hợp sử dụng thực tế cho các hook này:
+### 1. Initialize Third-party Library
 
-- Khởi tạo thư viện của bên thứ ba: sử dụng `afterNextRender` để đảm bảo DOM đã sẵn sàng trước khi khởi tạo các thư viện như Chart.js.
-- Thiết lập Element Observers: sử dụng `afterNextRender` để thiết lập IntersectionObserver hoặc ResizeObserver, vì các API này dựa trên sự hiện diện của phần tử trong DOM.
-- Kích thước nội dung động: triển khai `afterRender` với giai đoạn Đọc để điều chỉnh kích thước phần tử dựa trên nội dung được tải động.
-- Detaching Temporary Elements : sử dụng `afterNextRender` để xóa các phần tử tạm thời mà bạn đã thêm trong quá trình kết xuất (như dọn dẹp sau khi đóng phương ❌ thức ).
+```ts
+constructor() {
+  afterNextRender(() => {
+    // Chạy MỘT LẦN sau render đầu tiên
+    const el = this.chartContainer().nativeElement;
+    new Chart(el, { /* config */ });
+  });
+}
+```
 
-## Important Considerations 
+### 2. ResizeObserver
 
-- afterRender và afterNextRender dành cho các hoạt động dành riêng cho trình duyệt và sẽ không hoạt động trong quá trình server-side rendering.
-- Cân nhắc sử dụng các chức năng Angular tích hợp sẵn như ngAfterViewInit cho các tác vụ khởi tạo thành phần bất cứ khi nào có thể.
-- Mặc dù afterRender cho phép đọc DOM, nhưng hãy thận trọng do khả năng không khớp hydrat hóa giữa kết xuất máy chủ và máy khách.
-- Chúng chỉ có thể được khai báo trong `injection context.`
+```ts
+constructor() {
+  afterNextRender(() => {
+    this._resizeObserver = new ResizeObserver(() => {
+      console.log('WINDOW RESIZED!');
+    });
+    this._resizeObserver.observe(this.resize()!.nativeElement);
+  });
+}
+```
 
-> Bằng cách hiểu các khái niệm này, bạn có thể tận dụng afterRender và afterNextRender một cách hiệu quả để tạo ra sự tương tác liền mạch giữa các ứng dụng Angular của bạn và DOM.
+### 3. Dynamic Styling với Signals
+
+```ts
+afterRender({
+  write: () => {
+    // React to signal changes và update DOM
+    this.elementRef().nativeElement.style.width = this.width() + 'px';
+  }
+});
+```
 
 ## Custom Inject Function
 
-You can encapsulate OnInit login into a custom inject function.
+Có thể đóng gói OnInit logic vào custom inject function:
 
-![alt text](image-5.png)
+```ts
+function afterNextRenderInit(fn: () => void) {
+  afterNextRender(fn);
+}
+```
 
-## Reference
+## Lưu ý quan trọng
 
-https://medium.com/@amosisaila/angular-afterrender-afternextrender-new-phases-api-ddf2432455e2
+1. **Chỉ dùng trong injection context** — Constructor hoặc field initializer
+2. **Không hoạt động trên SSR** — Chỉ chạy trên client-side
+3. **`afterNextRender`: chạy 1 lần** — Lý tưởng cho third-party library init
+4. **`afterRender`: chạy mỗi render cycle** — Dùng thận trọng vì performance
+5. **Tránh layout thrashing** — Đọc trước, ghi sau trong các phases riêng
 
-https://stackblitz.com/edit/stackblitz-starters-a39kev?file=src%2Fmain.ts
+## Cách sử dụng
 
-https://stackblitz.com/edit/stackblitz-starters-rey9qy?file=src%2Fmain.ts
+```bash
+npm install
+ng serve
+```
+
+## Tài liệu tham khảo
+
+- [Angular afterRender API](https://angular.dev/api/core/afterRender)
+- [Angular afterNextRender API](https://angular.dev/api/core/afterNextRender)
+- [afterRender & afterNextRender Hooks](https://medium.com/@amosisaila/angular-afterrender-afternextrender-new-phases-api-ddf2432455e2)

@@ -1,342 +1,400 @@
-# Component động trong Angular với ngComponentOutlet
+# 4. `ngComponentOutlet` — Dynamic Components (Angular 20)
 
-Một trong những dấu hiệu cho thấy bạn đang trở thành một Senior Engineer là cách tiếp cận xây dựng component ngày càng modular, đơn giản và tái sử dụng. Angular nổi tiếng với khả năng xây dựng ứng dụng enterprise một cách tự tin, và đó là lý do kiến trúc dựa trên component của Angular vượt trội trong việc tạo ra các phần tử UI có thể tái sử dụng, có tính mô-đun. Nhưng chuyện gì xảy ra khi bạn cần render các component chưa được biết trước cho đến runtime? Đây là lúc ngComponentOutlet xuất hiện – một directive mạnh mẽ với khả năng đáng kể.
+## Tổng quan
 
-Trong bài viết này, chúng ta sẽ tìm hiểu ngComponentOutlet, khám phá các use case nâng cao, cân nhắc về performance, và cách tích hợp với các tính năng mới nhất của Angular.
+Angular 20 giới thiệu **Dynamic Component Outlet** (`ngComponentOutlet`) — cho phép render **Component types động** trực tiếp trong template, **không cần ViewContainerRef hay factory**. Đây là một trong những features được mong đợi nhất, giúp dynamic components trở nên đơn giản hơn bao giờ hết.
 
-## Hiểu về Angular Directives
-Trước khi đi sâu vào ngComponentOutlet, hãy xây dựng nền tảng vững chắc bằng cách hiểu directive là gì trong hệ sinh thái Angular.
+## API mới
 
-Directives là các class bổ sung hành vi cho element trong ứng dụng Angular của bạn. Chúng là một trong những khối xây dựng cốt lõi của Angular, bên cạnh component, service và pipe. Mặc dù component về mặt kỹ thuật là directive có template, Angular cung cấp ba loại directive riêng biệt:
-
-- **Components**: Directive có template tạo ra các UI widget có thể tái sử dụng
-- **Structural Directives**: Thay đổi layout của DOM bằng cách thêm/bớt phần tử DOM (@if, @for, @switch)
-- **Attribute Directives**: Thay đổi giao diện hoặc hành vi của một element hiện có
-
-ngComponentOutlet thuộc nhóm structural directive, vì nó thay đổi cấu trúc DOM bằng cách chèn component một cách động.
-
-## ngComponentOutlet là gì?
-ngComponentOutlet là một structural directive để khởi tạo component một cách động. Không giống "người anh" ComponentFactoryResolver (đã bị deprecate), ngComponentOutlet cung cấp cách tiếp cận rõ ràng, mang tính declarative hơn cho việc tạo component động.
-
-### Declarative vs Imperative Programming trong Angular
-Để hiểu vì sao ngComponentOutlet là một bước tiến, ta cần phân biệt hai cách tiếp cận declarative và imperative:
-
-- **Declarative Programming**: Tập trung mô tả điều gì nên xảy ra mà không chỉ định cách thực hiện. Bạn định nghĩa trạng thái mong muốn, và framework xử lý chi tiết triển khai.
-- **Imperative Programming**: Tập trung mô tả cách thực hiện theo từng bước. Bạn chỉ định tường minh từng thao tác cần làm.
-
-Angular nói chung theo paradigm declarative, cho phép developer diễn đạt UI nên trông như thế nào thay vì thao tác DOM thủ công. Tuy nhiên, các cách tiếp cận cũ để tạo component động trong Angular (như ViewContainerRef.createComponent() và ComponentFactoryResolver) mang tính imperative hơn, đòi hỏi nhiều bước và xử lý tường minh vòng đời tạo component.
-
-Với ngComponentOutlet, bạn chỉ cần khai báo component nào sẽ được render trong template, và Angular xử lý toàn bộ độ phức tạp của việc khởi tạo và binding input:
-
-```html
-<ng-container *ngComponentOutlet="componentToRender"></ng-container>
-```
-
-Dòng duy nhất này thay thế những gì vốn đòi hỏi nhiều bước với component factory, view container, và xử lý injection thủ công. Nhưng sức mạnh thực sự nằm dưới bề mặt đơn giản đó.
-
-## Quá trình tiến hóa của việc tạo component động trong Angular
-Để đánh giá đầy đủ ngComponentOutlet, đáng để nhìn lại tiến trình phát triển của việc tạo component động trong Angular:
-
-### Cách cũ: ViewContainerRef và ComponentFactoryResolver
-Trước khi ngComponentOutlet được trang bị đầy đủ, việc tạo component động bao gồm nhiều bước imperative:
-
-```ts
+```typescript
 @Component({
-  selector: 'app-dynamic-host',
-  template: '<ng-template #container></ng-template>'
-})
-export class DynamicHostComponent implements OnInit {
-  @ViewChild('container', { read: ViewContainerRef }) container: ViewContainerRef;
-  
-  constructor(private componentFactoryResolver: ComponentFactoryResolver) {}
-  
-  ngOnInit() {
-    // Create component factory
-    const factory = this.componentFactoryResolver.resolveComponentFactory(DynamicComponent);
-    
-    // Create component instance
-    const componentRef = this.container.createComponent(factory);
-    
-    // Set inputs
-    componentRef.instance.data = { title: 'Dynamic Title' };
-    
-    // Manually trigger change detection
-    componentRef.changeDetectorRef.detectChanges();
-  }
-}
-```
-
-Cách tiếp cận này yêu cầu hiểu nhiều nội bộ của Angular, kéo theo nhiều boilerplate và dễ phát sinh lỗi. Nó cũng khó đọc và bảo trì khi ứng dụng lớn dần.
-
-### Cách hiện đại: ngComponentOutlet
-Với ngComponentOutlet, cùng một chức năng có thể đạt được theo cách thanh thoát hơn:
-
-```ts
-@Component({
-  selector: 'app-dynamic-host',
+  imports: [NgComponentOutlet],
   template: `
-    <ng-container *ngComponentOutlet="
-      dynamicComponent;
-      inputs: { data: componentData }
-    "></ng-container>
-  `
-})
-export class DynamicHostComponent {
-  dynamicComponent = DynamicComponent;
-  componentData = { title: 'Dynamic Title' };
-}
-```
-
-Cách tiếp cận này:
-
-- **Mang tính declarative hơn** — nói điều cần render, không nói cách làm
-- **Dễ đọc và bảo trì hơn**
-- **Ít lỗi và ít rò rỉ bộ nhớ hơn**
-
-## Các use case nâng cao thực tiễn
-### 1. Content Projection với component động
-Một ứng dụng nâng cao là kết hợp component động với content projection. Điều này cho phép các pattern composition mạnh mẽ:
-
-```ts
-@Component({
-  selector: 'app-dynamic-wrapper',
-  template: `
-    <div class="wrapper">
-      <ng-container *ngComponentOutlet="componentType; injector: customInjector; content: projectedContent"></ng-container>
-    </div>
-  `
-})
-export class DynamicWrapperComponent {
-  @Input() componentType: Type<any>;
-  @Input() projectedContent: any[][];
-  @Input() context: any;
-  
-  private _customInjector: Injector;
-  
-  constructor(private injector: Injector) {}
-  
-  get customInjector(): Injector {
-    if (this.context) {
-      // Create a custom injector with the context
-      this._customInjector = Injector.create({
-        providers: [{ provide: COMPONENT_CONTEXT, useValue: this.context }],
-        parent: this.injector
-      });
-      return this._customInjector;
-    }
-    return this.injector;
-  }
-}
-```
-
-### 2. Lazy-load component theo nhu cầu
-Với các phiên bản Angular mới, ta có thể kết hợp ngComponentOutlet với standalone components và lazy loading để đạt hiệu năng tối ưu:
-
-```ts
-@Component({
-  selector: 'app-dynamic-loader',
-  standalone: true,
-  imports: [CommonModule],
-  template: `
-    <ng-container *ngComponentOutlet="componentToRender"></ng-container>
-    <button (click)="loadComponent()">Load Component</button>
-  `
-})
-export class DynamicLoaderComponent {
-  componentToRender: Type<any> | null = null;
-  
-  async loadComponent() {
-    // Dynamically import the component only when needed
-    const { DynamicFeatureComponent } = await import('./dynamic-feature/dynamic-feature.component');
-    this.componentToRender = DynamicFeatureComponent;
-  }
-}
-```
-
-## Tích hợp với hệ thống Dependency Injection của Angular
-Một trong những điểm mạnh nhất của ngComponentOutlet là tích hợp mượt mà với hệ thống DI của Angular. Directive này chấp nhận một `injector` (tùy chọn) cho phép bạn cung cấp dependency tùy biến cho component động:
-
-```ts
-@Component({
-  selector: 'app-dynamic-container',
-  template: `
-    <ng-container 
-      *ngComponentOutlet="
-        component; 
-        injector: customInjector;
-        inputs: resolveInputs()
-      ">
-    </ng-container>
-  `
-})
-export class DynamicContainerComponent {
-  @Input() component: Type<any>;
-  @Input() componentInputs: Record<string, any> = {};
-  
-  constructor(private injector: Injector) {}
-  
-  get customInjector(): Injector {
-    return Injector.create({
-      providers: [
-        {
-          provide: DYNAMIC_COMPONENT_CONTEXT,
-          useValue: { parentComponent: this }
-        }
-      ],
-      parent: this.injector
-    });
-  }
-  
-  resolveInputs() {
-    // Chuyển đổi inputs sang định dạng mà ngComponentOutlet yêu cầu
-    return Object.entries(this.componentInputs).map(
-      ([propName, propValue]) => ({ propName, propValue })
-    );
-  }
-}
-```
-
-## Tận dụng Standalone Components với ngComponentOutlet
-Với tính năng standalone components của Angular, việc tạo component động càng trở nên mạnh mẽ:
-
-```ts
-// A standalone dynamic component
-@Component({
-  selector: 'app-feature-card',
-  standalone: true,
-  imports: [CommonModule, MatCardModule],
-  template: `
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>{{ data.title }}</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>{{ data.content }}</mat-card-content>
-    </mat-card>
-  `
-})
-export class FeatureCardComponent {
-  @Input() data: {title: string, content: string};
-}
-
-// Dynamic component loader
-@Component({
-  selector: 'app-content-renderer',
-  imports: [CommonModule, NgComponentOutlet],
-  template: `
-@for(item of contentItems) {
-   <ng-container>
-      <ng-container *ngComponentOutlet="
-        getComponentForType(item.type);
-        inputs: {data: item}
-      "></ng-container>
-    </ng-container>
-}  
-`
-})
-export class ContentRendererComponent {
-  @Input() contentItems: Array<{type: string, title: string, content: string}> = [];
-  
-  getComponentForType(type: string): Type<any> {
-    const componentMap: Record<string, Type<any>> = {
-      'feature': FeatureCardComponent,
-      'alert': AlertComponent,
-      'promo': PromoComponent
-    };
-    
-    return componentMap[type] || FallbackComponent;
-  }
-}
-```
-
-## Input binding với ngComponentOutlet
-Bạn cũng có thể truyền input cho các component được tạo động:
-
-```ts
-@Component({
-  selector: 'app-dashboard',
-  template: `
-    <ng-container *ngComponentOutlet="
-      selectedWidget;
-      inputs: {
-        data: widgetData,
-        config: widgetConfig,
-        theme: currentTheme
-      }
-    "></ng-container>
+    <ng-container [ngComponentOutlet]="currentComponent" />
   `
 })
 export class DashboardComponent {
-  @Input() selectedWidget: Type<any>;
-  @Input() widgetData: any;
-  @Input() widgetConfig: any;
-  currentTheme = 'dark';
+  currentComponent = AdminPanelComponent;
 }
 ```
 
-Cú pháp này cải thiện đáng kể khả năng đọc so với cách mảng trước đây.
+**Thay đổi so với trước:**
 
-## Xử lý lỗi và Component Guards
-Trong ứng dụng production, xử lý lỗi vững chắc là tối quan trọng khi làm việc với component động:
+| Trước (Angular < 20) | Sau (Angular 20) |
+|---|---|
+| `ViewContainerRef` + `ComponentFactory` | `NgComponentOutlet` directive |
+| `createComponent(factory)` | `[ngComponentOutlet]="componentClass"` |
+| 5+ lines boilerplate | 1 line template |
+| Manual lifecycle management | Auto lifecycle |
 
-```ts
+## Tại sao cần feature này?
+
+Trước Angular 20, việc render dynamic components cực kỳ phức tạp:
+
+```typescript
+// Trước Angular 20 - Phức tạp!
 @Component({
-  selector: 'app-safe-outlet',
-  template: `
+  selector: 'app-dashboard',
+  template: `<div #container></div>`
+})
+export class DashboardComponent implements AfterViewInit {
+  @ViewChild('container', { read: ViewContainerRef })
+  container!: ViewContainerRef;
 
-@if(isComponentSafe(componentToRender)) {
-<ng-container>
-      <ng-container *ngComponentOutlet="
-        componentToRender;
-        injector: errorHandlingInjector
-      "></ng-container>
-    </ng-container>
-} @else {
-    <ng-template>
-      <div class="error-container">
-        <p>Unable to render component safely</p>
-      </div>
-    </ng-template>
+  ngAfterViewInit() {
+    const factory = this.componentFactoryResolver.resolveComponentFactory(
+      AdminPanelComponent
+    );
+    this.container.clear();
+    const componentRef = this.container.createComponent(factory);
+    componentRef.instance.data = this.data;
+  }
 }
+```
 
+Angular 20 giải quyết bằng template directive đơn giản.
+
+## Ví dụ thực tế
+
+### 1. Basic Usage
+
+```typescript
+import { Component } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
+import { AdminPanelComponent } from './admin-panel.component';
+import { UserPanelComponent } from './user-panel.component';
+
+@Component({
+  selector: 'app-dashboard',
+  imports: [NgComponentOutlet],
+  template: `
+    <ng-container [ngComponentOutlet]="currentComponent" />
   `
 })
-export class SafeOutletComponent implements OnInit {
-  @Input() componentToRender: Type<any>;
-  errorHandlingInjector: Injector;
-  
-  constructor(
-    private injector: Injector,
-    private errorHandler: ErrorHandler
-  ) {
-    // Create injector with error handling capabilities
-    this.errorHandlingInjector = Injector.create({
-      providers: [
-        {
-          provide: ErrorHandler,
-          useValue: {
-            handleError: (error: any) => {
-              console.error('Component error:', error);
-              this.errorHandler.handleError(error);
-              // Attempt recovery
-              this.attemptRecovery();
-            }
-          }
-        }
-      ],
-      parent: this.injector
-    });
-  }
-  
-  isComponentSafe(component: Type<any>): boolean {
-    const metadata = getComponentMetadata(component);
-    return metadata && !metadata.unsafe;
-  }
-  
-  attemptRecovery(): void {
-    // Implement recovery logic
+export class DashboardComponent {
+  currentComponent = AdminPanelComponent;
+
+  switchToUser() {
+    this.currentComponent = UserPanelComponent;
   }
 }
 ```
 
-## Kết luận
-ngComponentOutlet không chỉ là một directive đơn giản cho component động – nó là một công cụ mạnh mẽ, tích hợp sâu với các tính năng cốt lõi của Angular. Với nó, bạn có thể xây dựng các ứng dụng linh hoạt, dễ bảo trì, có khả năng thích ứng với yêu cầu thay đổi ngay tại runtime.
+### 2. With Inputs
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    <ng-container
+      [ngComponentOutlet]="currentComponent"
+      [ngComponentOutletInputs]="componentInputs"
+    />
+  `
+})
+export class DashboardComponent {
+  currentComponent = AdminPanelComponent;
+  componentInputs = {
+    title: 'Admin Dashboard',
+    isAdmin: true,
+    data: this.dashboardData
+  };
+}
+```
+
+### 3. With Outputs
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    <ng-container
+      [ngComponentOutlet]="currentComponent"
+      [ngComponentOutletInputs]="componentInputs"
+      [ngComponentOutletOutputs]="componentOutputs"
+    />
+  `
+})
+export class DashboardComponent {
+  currentComponent = UserPanelComponent;
+
+  componentInputs = {
+    title: 'User Dashboard'
+  };
+
+  componentOutputs = {
+    onAction: (event: any) => this.handleAction(event),
+    onLogout: () => this.handleLogout()
+  };
+
+  handleAction(event: any) {
+    console.log('Action received:', event);
+  }
+
+  handleLogout() {
+    console.log('User logged out');
+  }
+}
+```
+
+### 4. Component Class (`app.ts`)
+
+```typescript
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+
+@Component({
+  selector: 'app-root',
+  imports: [RouterOutlet],
+  templateUrl: './app.html',
+  styleUrl: './app.scss'
+})
+export class App {
+  protected title = 'ng-component-outlet';
+}
+```
+
+### 5. Template (`app.html`)
+
+```html
+<!-- Basic dynamic component -->
+<ng-container [ngComponentOutlet]="currentComponent" />
+
+<!-- With context -->
+<ng-container
+  [ngComponentOutlet]="currentComponent"
+  [ngComponentOutletInputs]="inputs"
+  [ngComponentOutletOutputs]="outputs"
+/>
+```
+
+## Flow chi tiết
+
+```
+currentComponent = AdminPanelComponent
+        │
+        ▼
+[ngComponentOutlet]="currentComponent"
+        │
+        ▼
+Angular tạo AdminPanelComponent instance
+        │
+        ▼
+[ngComponentOutletInputs]="componentInputs"
+        │
+        ▼
+Inject inputs vào component instance
+        │
+        ▼
+[ngComponentOutletOutputs]="componentOutputs"
+        │
+        ▼
+Subscribe outputs từ component instance
+        │
+        ▼
+Component render trong DOM
+```
+
+## So sánh trước và sau Angular 20
+
+### Trước Angular 20
+
+```typescript
+@Component({
+  selector: 'app-dashboard',
+  template: `<div #container></div>`
+})
+export class DashboardComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('container', { read: ViewContainerRef })
+  container!: ViewContainerRef;
+
+  private componentRef: ComponentRef<any>;
+
+  constructor(
+    private componentFactoryResolver: ComponentFactoryResolver,
+    private injector: Injector
+  ) {}
+
+  ngAfterViewInit() {
+    this.loadComponent(AdminPanelComponent);
+  }
+
+  loadComponent(component: Type<any>) {
+    const factory = this.componentFactoryResolver.resolveComponentFactory(component);
+    this.container.clear();
+    this.componentRef = this.container.createComponent(factory);
+
+    // Manual input/output binding
+    this.componentRef.instance.data = this.data;
+    this.componentRef.instance.onAction.subscribe((event: any) => {
+      this.handleAction(event);
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.componentRef) {
+      this.componentRef.destroy();
+    }
+  }
+}
+```
+
+### Sau Angular 20
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    <ng-container
+      [ngComponentOutlet]="currentComponent"
+      [ngComponentOutletInputs]="inputs"
+      [ngComponentOutletOutputs]="outputs"
+    />
+  `
+})
+export class DashboardComponent {
+  currentComponent = AdminPanelComponent;
+  inputs = { data: this.data };
+  outputs = {
+    onAction: (event: any) => this.handleAction(event)
+  };
+}
+```
+
+**Lợi ích:**
+- ✅ Code gọn hơn 80%
+- ✅ Không cần `ViewContainerRef`
+- ✅ Không cần `ComponentFactoryResolver`
+- ✅ Auto lifecycle management
+- ✅ Type-safe với TypeScript
+
+## Use cases phổ biến
+
+### 1. Widget Dashboard
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    @for (widget of widgets; track widget.id) {
+      <ng-container
+        [ngComponentOutlet]="widget.component"
+        [ngComponentOutletInputs]="widget.inputs"
+      />
+    }
+  `
+})
+export class DashboardComponent {
+  widgets = [
+    { id: 1, component: ChartComponent, inputs: { data: chartData } },
+    { id: 2, component: TableComponent, inputs: { data: tableData } },
+    { id: 3, component: MapComponent, inputs: { data: mapData } },
+  ];
+}
+```
+
+### 2. Plugin System
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    @for (plugin of activePlugins; track plugin.name) {
+      <ng-container
+        [ngComponentOutlet]="plugin.component"
+        [ngComponentOutletInputs]="plugin.config"
+        [ngComponentOutletOutputs]="plugin.handlers"
+      />
+    }
+  `
+})
+export class PluginHostComponent {
+  activePlugins = this.pluginService.getActivePlugins();
+}
+```
+
+### 3. Form Builder
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    @for (field of formFields; track field.name) {
+      <div class="form-field">
+        <label>{{ field.label }}</label>
+        <ng-container
+          [ngComponentOutlet]="field.component"
+          [ngComponentOutletInputs]="field.config"
+          [ngComponentOutletOutputs]="field.handlers"
+        />
+      </div>
+    }
+  `
+})
+export class DynamicFormComponent {
+  formFields = [
+    {
+      name: 'username',
+      label: 'Username',
+      component: TextInputComponent,
+      config: { placeholder: 'Enter username', required: true }
+    },
+    {
+      name: 'role',
+      label: 'Role',
+      component: SelectComponent,
+      config: { options: ['Admin', 'User', 'Guest'] }
+    }
+  ];
+}
+```
+
+### 4. Content Management
+
+```typescript
+@Component({
+  imports: [NgComponentOutlet],
+  template: `
+    @for (block of contentBlocks; track block.id) {
+      <ng-container
+        [ngComponentOutlet]="getBlockComponent(block.type)"
+        [ngComponentOutletInputs]="block.data"
+      />
+    }
+  `
+})
+export class CmsComponent {
+  contentBlocks = [
+    { id: 1, type: 'hero', data: { title: 'Welcome' } },
+    { id: 2, type: 'text', data: { content: '...' } },
+    { id: 3, type: 'gallery', data: { images: [...] } },
+  ];
+
+  getBlockComponent(type: string): Type<any> {
+    const map = {
+      'hero': HeroComponent,
+      'text': TextComponent,
+      'gallery': GalleryComponent
+    };
+    return map[type] || TextComponent;
+  }
+}
+```
+
+## Best practices
+
+1. **Lazy load components** khi có thể để giảm bundle size
+2. **Dùng `track` trong `@for`** để optimize rendering
+3. **Validate component inputs** trước khi truyền
+4. **Cleanup subscriptions** trong dynamic components
+5. **Test components riêng biệt** trước khi dùng dynamic
+
+## Chạy thử
+
+```bash
+cd 4_angular-new-feature/7_angular-20/1_new-featue/4_ng-component-outlet-DYNAMIC-COMPONENT
+npm install
+ng serve
+```
+
+Mở `http://localhost:4200` để xem dynamic component rendering.

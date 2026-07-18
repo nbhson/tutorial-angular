@@ -1,66 +1,117 @@
-# New equality function in rxjs-interop
+# 4. RxJS Interop — Custom Equality Function
 
-Chức năng toSignal Angular đã được tăng cường để hỗ trợ chức năng bình đẳng tùy chỉnh, cung cấp cho các nhà phát triển kiểm soát nhiều hơn về cách so sánh giá trị Cập nhật kích hoạt.
+## Mô tả
 
-Trước đây, toSignal hoạt động với kiểm tra bình đẳng cơ bản, thiếu tính linh hoạt cho các nhà phát triển để xác định những gì cấu thành sự bình đẳng cho các kịch bản cụ thể của họ. Điều này thường dẫn đến các bản cập nhật thành phần không cần thiết.
+Angular 19 cập nhật `toSignal()` trong `@angular/core/rxjs-interop` với hỗ trợ **custom equality function**. Điều này cho phép kiểm soát chính xác khi nào signal được update từ Observable, tránh các render không cần thiết.
 
-Với bản cập nhật gần đây, các nhà phát triển hiện có thể chỉ định chức năng bình đẳng tùy chỉnh xác định khi nào các bản cập nhật sẽ xảy ra, tối ưu hóa hiệu suất bằng cách đảm bảo rằng các bản cập nhật chỉ được kích hoạt bởi các thay đổi dữ liệu có ý nghĩa. 
-
-Tính năng mới này không chỉ cho phép so sánh giá trị phù hợp mà còn tiêu chuẩn hóa việc sử dụng kiểm tra bình đẳng khi trước đây vắng mặt, làm cho hành vi của tín hiệu dễ dự đoán và hiệu quả hơn.
-
+## Vấn đề giải quyết
 
 ```ts
-// Create a Subject to emit array values
-const arraySubject$ = new Subject<number[]>();
+// ❌ Trước Angular 19 — mỗi emission đều trigger update
+const array$ = new Subject<number[]>();
+const array = toSignal(array$, { initialValue: [] });
 
+array$.next([1, 2, 3]);
+array$.next([1, 2, 3]); // Trigger update dù giá trị giống hệt!
+```
 
-// Define a custom equality function to compare arrays based on their content
-const arraysAreEqual = (a: number[], b: number[]): boolean => {
-   return a.length === b.length && a.every((value, index) => value === b[index]);
-};
-
-// Convert the Subject to a signal with a custom equality function
-const arraySignal = toSignal(arraySubject$, {
-   initialValue: [1, 2, 3],
-   equals: arraysAreEqual, // Custom equality function for arrays
+```ts
+// ✅ Angular 19 — custom equality function
+const array = toSignal(array$, {
+  initialValue: [],
+  equal: (a, b) => a.length === b.length && a.every((v, i) => v === b[i])
 });
+array$.next([1, 2, 3]);
+array$.next([1, 2, 3]); // Không trigger update!
 ```
 
-Result:
+## Cú pháp
 
 ```ts
-// Phát ra giá trị mới
-arraySubject$.next([1, 2, 3]); // Không trigger update vì giống giá trị ban đầu
-arraySubject$.next([1, 2, 4]); // Trigger update vì mảng đã thay đổi
-
-// Đọc giá trị từ signal
-console.log(arraySignal()); // [1, 2, 4]
+toSignal<T>(observable: Observable<T>, options?: {
+  initialValue?: T;
+  equal?: (a: T, b: T) => boolean;  // ← Custom equality mới
+  injector?: Injector;
+}): Signal<T>
 ```
 
-Example:
+## Files trong project
+
+### `src/app/app.component.ts` — Demo chi tiết
 
 ```ts
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 
 @Component({
-  selector: 'app-example',
-  template: `
-    <p>Array: {{ array() | json }}</p>
-  `,
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  imports: [JsonPipe]
 })
-export class ExampleComponent {
+export class AppComponent implements OnInit {
   arraySubject$ = new Subject<number[]>();
+  number = signal<number>(1);
+
+  // Custom equality function — so sánh content của array
   arraysAreEqual = (a: number[], b: number[]): boolean => {
     return a.length === b.length && a.every((val, index) => val === b[index]);
   };
 
-  array = toSignal(this.arraySubject$, { equal: this.arraysAreEqual });
+  // toSignal với custom equality
+  array = toSignal(this.arraySubject$, {
+    initialValue: [1, 2, 3],
+    equal: this.arraysAreEqual
+  });
 
-  constructor() {
-    this.arraySubject$.next([1, 2, 3]); 
-    this.arraySubject$.next([1, 2, 3]); // No update, arrays are equal
-    this.arraySubject$.next([1, 2, 4]); // Update, arrays are different
+  // Computed signal — chỉ chạy lại khi array thực sự thay đổi
+  checkComputed = computed(() => {
+    console.log('trigger computed');
+    return this.array();
+  });
+
+  ngOnInit() {
+    this.arraySubject$.next([1, 2, 3]); // Không update — giống initialValue
+    this.arraySubject$.next([1, 2, 3]); // Không update — giống giá trị trước
+    this.arraySubject$.next([1, 2, 4]); // ✅ Update — khác giá trị
+
+    setTimeout(() => {
+      this.number.set(2); // Trigger computed riêng
+    }, 3000);
   }
 }
 ```
+
+## Flow diagram
+
+```
+Observable emission: [1, 2, 3]
+        │
+        ▼
+Custom equality function
+  equal([1,2,3], [1,2,3]) → true
+        │
+        ├── true  → KHÔNG update signal (skip render)
+        └── false → UPDATE signal → re-render
+```
+
+## So sánh before/after
+
+| emission | Before (default) | After (custom equality) |
+|----------|------------------|------------------------|
+| `[1,2,3]` (giống initial) | Update → render | Skip → **no render** |
+| `[1,2,3]` (giống prev) | Update → render | Skip → **no render** |
+| `[1,2,4]` (khác) | Update → render | Update → render |
+
+## Khi nào dùng custom equality?
+
+- **Array signals** từ Observable (so sánh shallow)
+- **Large objects** chỉ few fields thay đổi
+- **Immutable data** patterns (Redux/NgRx stores)
+- **Performance optimization** — giảm不必要的 renders
+
+## Reference
+
+- [Angular RxJS Interop Docs](https://angular.dev/guide/signals/rxjs-interop)
+- [toSignal API](https://angular.dev/api/core/rxjs-interop/toSignal)
+- [Angular 19 Release Notes](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)

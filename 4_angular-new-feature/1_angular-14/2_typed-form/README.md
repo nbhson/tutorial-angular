@@ -1,23 +1,47 @@
-# TypedForm
+# Typed Forms (Angular 14)
 
-# Typed a FormControl
+> Typed Forms giúp đảm bảo type safety cho Reactive Forms, loại bỏ runtime type errors.
 
-- Trong Angular 14, lớp FormControl hiện có kiểu `TValue` chung của TypeScript có kiểu gán mặc định là **any**
+## Trước Angular 14
 
-- Trước Angular 14, khi truy cập các thuộc tính như `value2`, loại là `any` và khi sử dụng phương thức `setValue`, nó sẽ chấp nhận giá trị đối số `any`.
+```ts
+// Bất kỳ giá trị nào cũng có thể set vào form
+const form = new FormGroup({
+  name: new FormControl(''),
+  age: new FormControl(0)
+});
 
-- Đây chỉ là một số thành viên của lớp đã được cập nhật để sử dụng loại chung `TValue`:
-    - `setValue`(value: TValue)
-    - `patchValue`(value: TValue)
-    - `reset`(formState: TValue)
-    - `getRawValue`(): TValue
-    - `value`: TValue
+form.get('age')?.setValue('abc'); // Không có lỗi compile!
+console.log(form.value.age); // any
+```
 
-> This is a big win for preventing runtime exceptions and regressions due to type errors!
+## Sau Angular 14
 
-# Typed a FormGroup
+```ts
+// FormControl với type safety
+const form = new FormGroup({
+  name: new FormControl(''),
+  age: new FormControl(0)
+});
 
-- Mục đích của Angular's FormGroup là group form controls một cách hợp lý để theo dõi trạng thái của chúng (giá trị, tính hợp lệ, v.v.) cùng nhau. Angular 14 cũng giới thiệu các kiểu gõ cập nhật cho API FormGroup.
+form.get('age')?.setValue('abc'); // ❌ Compile error!
+console.log(form.value.age); // number | null
+```
+
+## Typed FormControl
+
+```ts
+// FormControl<TValue> - generic type parameter
+const nameControl = new FormControl<string>('');
+const ageControl = new FormControl<number>(0);
+
+// Các method đều type-safe
+nameControl.setValue('John');      // ✅
+nameControl.setValue(123);         // ❌ Compile error
+nameControl.value;                 // string | null
+```
+
+## Typed FormGroup
 
 ```ts
 interface SignUpForm {
@@ -31,122 +55,124 @@ const signUpFormGroup = new FormGroup<SignUpForm>({
   email: new FormControl('')
 });
 
-const form = this.signUpFormGroup.value;
-console.log(form.email);
-console.log(form.name);
+// Type-safe value access
+const form = signUpFormGroup.value;
+console.log(form.email);  // string | null | undefined
+console.log(form.name);   // string | null | undefined
 
-// The name control's value is typed: string | null
-// The email control's value is typed: string | null
-// The subscribe control value is typed: string | null | undefined
-// The signUpFormGroup value is typed: Partial<{ name: string | null; email: string | null; subscribe: string | null | undefined }>
+// Typed setValue
+signUpFormGroup.setValue({
+  name: 'John',
+  email: 'john@example.com',
+  subscribe: 'yes'  // optional field
+});
 ```
-> You may have noticed that the control values can be null or, if optional, undefined. This is because Angular's form APIs **allow for null values**.
 
-> Nếu chúng ta gọi phương thức reset() trên một control, giá trị sẽ không được đặt thành giá trị *gốc/giá trị gốc* mà thay vào đó, nó được đặt thành **null**.
-
-# Typed a FormArray
-
-> Các phiên bản FormArray đã nhập `yêu cầu tất cả các điều khiển đều phải được nhập đồng nhất`. Nếu FormArray yêu cầu các loại không đồng nhất thì nên sử dụng `UntypedFormArray`.
-
+## Typed FormArray
 
 ```ts
+// FormArray yêu cầu type đồng nhất
 lineItems = new FormArray([
   new FormControl('')
 ]);
 
-lineItems.push(new FormControl('')); // SUCCESS
-lineItems.push(new FormControl(0)); // ERROR
-```
+lineItems.push(new FormControl(''));     // ✅ SUCCESS
+lineItems.push(new FormControl(0));      // ❌ ERROR - wrong type
 
-- Nhưng nếu ban đầu mảng điều khiển của chúng ta trống thì sao? Trong trường hợp đó, chúng ta có thể chỉ định loại điều khiển chung:
-
-```ts
+// FormArray trống - chỉ định generic type
 lineItems = new FormArray<AbstractControl<string>>([]);
 ```
-# New FormRecord
 
-- Như chúng ta đã tìm hiểu trước đây, FormGroup trong Angular 14+ hỗ trợ chỉ định một nhóm điều khiển có loại TValue được biết khi tạo nhóm, ngay cả khi tạo các điều khiển tùy chọn trong nhóm. 
-- Tuy nhiên, còn một nhóm điều khiển mà TValue không được biết khi tạo nhóm thì sao. Để đáp ứng trường hợp sử dụng này, Angular 14 cung cấp một lớp FormRecord mới.
-
+## FormRecord
 
 ```ts
-formGroup = new FormRecord<AbstractControl<string>>({});
+// FormGroup với TValue không biết khi tạo
+const addressForm = new FormRecord<AbstractControl<string>>({});
 
+// Thêm controls động
+addressForm.addControl('street', new FormControl(''));
+addressForm.addControl('city', new FormControl(''));
 
-// Now that we have created the group of controls using the FormRecord class, we can start to add (and/or remove) controls from the group.
-formGroup.addControl('street', new FormControl(''));
-
-// However, what happens if we attempt to add a new control whose TValue is a number?
-this.formGroup.addControl('no', new FormControl(0)); // ERROR
+// Type-safe khi add
+addressForm.addControl('no', new FormControl(0)); // ❌ ERROR
 ```
-# Mixing typed and untyped controls
 
-- Chúng ta có thể khai báo các loại controls hỗn hợp khi làm việc với một nhóm controls có kiểu không đồng nhất miễn là chúng ta khai báo các controls khi tạo nhóm. 
-- Hơn nữa, chúng ta có thể sử dụng lớp UntypedFormControl để khai báo một controls có loại TValue là any (under the hood, this is a type whose generic type is preset to any).
+## Mixed Typed & Untyped
 
 ```ts
-export class AppComponent implements OnInit  {
+export class AppComponent implements OnInit {
   formGroup = new FormGroup({
     street: new FormControl(''),
     no: new FormControl(0),
-    postalCode: new UntypedFormControl()
+    postalCode: new UntypedFormControl() // Bất kỳ type nào
   });
 
   ngOnInit(): void {
-    const street = this.formGroup.value.street;
-    const no = this.formGroup.get('no').value;
-    this.formGroup.get('postalCode').setValue(12345);
-    this.formGroup.get('postalCode').setValue('ABC123');
+    const street = this.formGroup.value.street;  // string | null
+    const no = this.formGroup.get('no')?.value;   // number | null
+    this.formGroup.get('postalCode')?.setValue(12345);  // ✅
+    this.formGroup.get('postalCode')?.setValue('ABC123'); // ✅ UntypedFormControl
   }
 }
 ```
-# Non-nullable controls
 
-Nếu bạn nhớ lại phần trước, chúng tôi đã đề cập rằng việc đặt lại trạng thái điều khiển biểu mẫu sẽ đặt giá trị thành null, chứ không phải giá trị ban đầu/giá trị gốc như chúng tôi mong đợi. 
-
-- Với các điều khiển biểu mẫu không thể rỗng, chúng ta có thể hướng dẫn rõ ràng cho trình biên dịch rằng giá trị được đặt lại về giá trị ban đầu khi gọi phương thức reset().
+## Non-nullable Controls
 
 ```ts
+// FormControl không trả về null khi reset
 export class AppComponent implements OnInit {
   formGroup = new FormGroup({
     street: new FormControl('', { nonNullable: true })
   });
 
   ngOnInit(): void {
-    this.formGroup.get('street').reset();
+    this.formGroup.get('street')?.reset();
     const street = this.formGroup.value.street;
-    console.log(street); // empty string, NOT null
+    console.log(street); // '' (empty string, NOT null)
   }
 }
 ```
 
-# The NonNullableFormBuilder service
-
-If you are building a large form where all of its fields are non-nullable, then marking the fields as non-nullable one by one could become quite verbose.
+## NonNullableFormBuilder
 
 ```ts
 @Component({
   selector: 'login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.css']
+  templateUrl: './login.component.html'
 })
 export class LoginComponent {
+  // Tất cả fields đều non-nullable
+  form = this.fb.group({
+    email: ['', {
+      validators: [Validators.required, Validators.email]
+    }],
+    password: ['', [Validators.required, Validators.minLength(8)]]
+  });
 
-   form = this.fb.group({
-      email: ["", {
-        validators: [Validators.required, Validators.email]
-      }],
-      password: ["", [Validators.required, Validators.minLength(8)] ]
-    });;
-
-  constructor(private fb: NonNullableFormBuilder) {
-  }
-
+  constructor(private fb: NonNullableFormBuilder) {}
 }
+
+// Reset trả về initial value, không phải null
+this.form.get('email')?.reset();
+console.log(this.form.value.email); // '' (not null)
 ```
 
-![alt text](image.png)
+## Type Summary
 
-As you can see, now all of the fields are considered non-nullable, as they are being reset to their initial value as expected (and not to null).
+| Component | Type | Description |
+|-----------|------|-------------|
+| `FormControl<T>` | `T \| null` | Single control value |
+| `FormGroup<T>` | `Partial<{ [K in keyof T]: T[K] \| null }>` | Group values |
+| `FormArray<T>` | `T[]` | Array of controls |
+| `FormRecord<T>` | `{ [key: string]: T }` | Dynamic controls |
 
-<https://blog.angular-university.io/angular-typed-forms/>
+## Best Practices
+
+1. **Luôn dùng typed forms** – Tránh runtime errors
+2. **Sử dụng interfaces** – Định nghĩa shape của form
+3. **NonNullableFormBuilder** – Cho forms có nhiều required fields
+4. **UntypedFormControl** – Chỉ dùng khi cần backward compatibility
+
+---
+
+**Summary**: Typed Forms loại bỏ runtime type errors trong Reactive Forms bằng cách sử dụng generics. FormGroup, FormControl, FormArray đều hỗ trợ type-safe, giúp phát hiện lỗi tại compile time thay vì runtime.

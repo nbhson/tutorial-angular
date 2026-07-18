@@ -1,30 +1,31 @@
-# Improving Developer Experience
+# Improving Developer Experience (Angular 16)
 
-## Required inputs
+> Angular 16 mang lại nhiều DX improvements: Required inputs, Router input binding, esBuild, self-closing tags, Jest support.
 
-The new feature fills this gap and allows us to explicitly mark the input as required, either in the @Input decorator:
+## 1. Required Inputs
 
 ```ts
+// Cách 1: @Input decorator
 @Component(...)
 export class App {
   @Input({ required: true }) title: string = '';
 }
-```
 
-or the @Component decorator inputs array:
-
-```ts
+// Cách 2: Component inputs array
 @Component({
- ...
- inputs: [
-   {name: 'title', required: true}
- ]
+  inputs: [
+    { name: 'title', required: true }
+  ]
 })
+export class App {
+  title: string = '';
+}
 ```
 
-## Passing router data as component inputs
+## 2. Router Data as Component Inputs
 
 ```ts
+// Route config
 const routes = [
   {
     path: 'about',
@@ -33,73 +34,64 @@ const routes = [
   }
 ];
 
-The list below shows the precedence of data being bound to input property if the names are the same:
-
-- resolved route data
-- static data
-- optional/matrix params
-- path params
-- query params
-
+// Component - route data tự động bind vào input
 @Component(...)
-export class About {
-  // The value of "contact" is passed to the contact input
-  @Input() contact?: string;
+export class AboutComponent {
+  @Input() contact?: string;  // Auto-bound from resolve
 }
 ```
 
-<https://angular.love/router-data-as-components-inputs-in-angular-v16>
+**Precedence (resolved route data > static data > params > query params):**
+```
+1. Resolved route data
+2. Static data
+3. Optional/matrix params
+4. Path params
+5. Query params
+```
 
-## Developer preview of the esbuild-based build system
+## 3. esBuild Dev Server
 
-Over a year ago we announced that we’re working on experimental support for esbuild in the Angular CLI to make your builds faster. Today we’re excited to share that in v16 our esbuild-based build system enters developer preview! Early tests showed over `72% improvement in cold production builds.`
-
-You can give Vite + esbuild a try by updating your angular.json:
-
-```json 
-"architect": {
-  "build": {                     /* Add the esbuild suffix  */
-    "builder": "@angular-devkit/build-angular:browser-esbuild",
+```json
+// angular.json
+{
+  "architect": {
+    "build": {
+      "builder": "@angular-devkit/build-angular:browser-esbuild"
+    }
   }
 }
 ```
 
-## Flexible ngOnDestroy
+**Kết quả:** 72% improvement trong cold production builds!
+
+## 4. Flexible ngOnDestroy
 
 ```ts
-import { Injectable, DestroyRef } from '@angular/core';
-
 @Injectable(...)
 export class AppService {
-  destroyRef = inject(DestroyRef);
+  private destroyRef = inject(DestroyRef);
 
   destroy() {
-    this.destroyRef.onDestroy(() => /* cleanup */ );
+    this.destroyRef.onDestroy(() => {
+      // Cleanup logic
+    });
   }
 }
 ```
 
-## Self-closing tags
-
-Now you can replace:
+## 5. Self-Closing Tags
 
 ```html
-<super-duper-long-component-name [prop]="someVar"></super-duper-long-component-name>
-```
+<!-- Trước: Phải đóng tag -->
+<super-duper-long-component-name [prop]="someVar">
+</super-duper-long-component-name>
 
-with this:
-
-```html
+<!-- Sau: Self-closing -->
 <super-duper-long-component-name [prop]="someVar"/>
 ```
 
-## Better unit testing with Jest and Web Test Runner
-
-Based on developer surveys in the Angular and the broader JavaScript community, Jest is one of the most loved testing frameworks and test runners. We’ve received numerous requests to support Jest which comes with reduced complexity since no real browsers are required.
-
-Today, we’re happy to announce that we’re introducing experimental Jest support. In a future release we will also move existing Karma projects to Web Test Runner to continue supporting browser-based unit testing. This will be a no-op for the majority of developers.
-
-You can experiment with Jest in new projects by installing Jest with npm install jest --save-dev and updating your angular.json file:
+## 6. Jest Support
 
 ```json
 {
@@ -119,24 +111,19 @@ You can experiment with Jest in new projects by installing Jest with npm install
 }
 ```
 
-## CSP support for inline-styles
-
-Content Security Policy (CSP) is a defense-in-depth technique to prevent XSS. To enable CSP, configure your web server to return an appropriate Content-Security-Policy HTTP header.
-
-In Angular v16, we’ve implemented a new feature spanning the framework, Universal, CDK, Material, and the CLI which allows you to specify a nonce attribute for the styles of the components that Angular inlines. There are two ways to specify the nonce: using the ngCspNonce attribute or through the CSP_NONCE injection token.
+## 7. CSP Support
 
 ```html
+<!-- HTML attribute -->
 <html>
 <body>
-  <app ngCspNonce="{% nonce %}"></app>  
+  <app ngCspNonce="{% nonce %}"></app>
 </body>
 </html>
 ```
 
 ```ts
-import {bootstrapApplication, CSP_NONCE} from '@angular/core';
-import {AppComponent} from './app/app.component';
-
+// Injection token
 bootstrapApplication(AppComponent, {
   providers: [{
     provide: CSP_NONCE,
@@ -145,22 +132,28 @@ bootstrapApplication(AppComponent, {
 });
 ```
 
-<https://v17.angular.io/guide/security#content-security-policy>
-
-## Configure Zone.js
-
-After the initial release of the standalone APIs we heard from developers that you’d like to be able to configure `Zone.js` with the new bootstrapApplication API.
-
-We added an option for this via provideZoneChangeDetection:
+## 8. Zone.js Configuration
 
 ```ts
 bootstrapApplication(App, {
-  providers: [provideZoneChangeDetection({ eventCoalescing: true })]
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true })
+  ]
 });
 ```
 
-## Reference
+## Summary
 
-<https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d>
+| Feature | Mô tả | Impact |
+|---------|-------|--------|
+| Required Inputs | `@Input({ required: true })` | Type safety |
+| Router Input Binding | Route data → Component inputs | Less boilerplate |
+| esBuild | 72% faster builds | DX |
+| Self-closing tags | `<comp/>` thay vì `<comp></comp>` | Clean code |
+| Jest support | Alternative to Karma | Testing DX |
+| CSP Support | `ngCspNonce` attribute | Security |
+| Flexible destroy | `DestroyRef.onDestroy()` | Better cleanup |
 
-<https://angular.love/angular-16-whats-new#esbuild%20dev%20server>
+---
+
+**Summary**: Angular 16 DX improvements giúp code gọn hơn, build nhanh hơn, và testing dễ hơn. Required inputs và router input binding giảm boilerplate显著.

@@ -1,27 +1,132 @@
-# Updates to the effect() function
+# 3. Updates to the effect() function
 
-Trong phiên bản mới nhất của Angular, phiên bản 19, hàm `effect` đã nhận được các bản cập nhật then chốt dựa trên phản hồi của cộng đồng.
+## Mô tả
 
-Một thay đổi đáng kể là việc loại bỏ `allowSignalWrites` flag. Ban đầu, lá cờ này được dự định giới hạn khi các signal có thể được đặt trong effect(), đẩy các nhà phát triển sang sử dụng tcomputed() cho một số kịch bản nhất định. 
+Angular 19 cập nhật quan trọng cho hàm `effect()` — loại bỏ `allowSignalWrites` flag và thay đổi thời gian thực thi effects để chạy đồng bộ với change detection cycle thay vì microtasks.
 
-Tuy nhiên, rõ ràng rằng hạn chế này thường là một sự cản trở hơn là một sự giúp đỡ, ngăn chặn việc sử dụng hiệu quả  effect() nơi nó có ý nghĩa. Đáp lại, Angular 19 sẽ cho phép các signal được đặt theo mặc định trong Effect(), loại bỏ độ phức tạp không cần thiết và tập trung vào các cách tốt hơn để hỗ trợ thực hành mã hóa tốt (xem LinkedSignal, API tài nguyên).
+## Vấn đề giải quyết
+
+### 1. Loại bỏ `allowSignalWrites` flag
+
+Trước Angular 19, để ghi signal trong effect, bạn phải bật flag này:
 
 ```ts
+// ❌ Trước Angular 19 — phải khai báo flag
 effect(
-   () => {
-       console.log(this.users());
-   },
-   //This flag is removed in the new version
-   { allowSignalWrites: true }
+  () => {
+    console.log(this.users());
+    this.otherSignal.set('updated'); // Error nếu không có flag!
+  },
+  { allowSignalWrites: true } // Bắt buộc phải có
 );
 ```
 
-Ngoài ra, có một sự thay đổi lớn về thời gian khi các hiệu ứng được thực hiện. Di chuyển ra khỏi cách tiếp cận trước đó để xếp hàng chúng dưới dạng microtasks, các hiệu ứng giờ đây sẽ được thực hiện như một phần của chu kỳ phát hiện thay đổi trong hệ thống phân cấp thành phần. Điều chỉnh này nhằm mục đích khắc phục các vấn đề với các hiệu ứng chạy quá sớm hoặc quá muộn và đảm bảo thứ tự thực hiện hợp lý hơn được liên kết với cây thành phần.
+```ts
+// ✅ Angular 19 — ghi signal được phép mặc định
+effect(() => {
+  console.log(this.users());
+  this.otherSignal.set('updated'); // Hoạt động bình thường!
+});
+```
 
-Những cải tiến này được thiết kế để tăng cường cả chức năng và khả năng sử dụng của hàm hiệu ứng (), làm cho nó phù hợp hơn với nhu cầu của các nhà phát triển. Mặc dù Effect () sẽ tiếp tục trong giai đoạn xem trước nhà phát triển trong phiên bản 19, điều này cho phép các tinh chỉnh hơn nữa dựa trên trải nghiệm của nhà phát triển với các tính năng mới này.
+### 2. Thay đổi thời gian thực thi
 
-https://angular.love/angular-19-whats-new#Updates%20to%20the%20effect()%20function
+```
+Trước Angular 19:                    Angular 19:
+┌─────────────────────┐             ┌─────────────────────┐
+│ Change Detection     │             │ Change Detection     │
+│       ↓              │             │       ↓              │
+│ Microtask Queue      │             │ Effect executes      │
+│       ↓              │             │ (cùng cycle)        │
+│ Effect executes      │             └─────────────────────┘
+│ (có thể quá sớm /   │
+│  quá muộn)           │
+└─────────────────────┘
+```
 
-https://blog.angular.dev/meet-angular-v19-7b29dfd05b84
+## Files trong project
 
-https://medium.com/@rajat29gupta/highlight-key-new-features-in-angular-19-de77981756c7
+### `src/app/app.component.ts` — Component minh họa
+
+```ts
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+
+@Component({
+  selector: 'app-root',
+  imports: [RouterOutlet],
+  templateUrl: './app.component.html',
+})
+export class AppComponent {
+  title = '3_update-effect';
+}
+```
+
+> Project này minh họa khái niệm hơn là demo phức tạp — xem code example bên dưới để hiểu rõ hơn.
+
+## Code Examples
+
+### Ví dụ 1: Effect ghi signal trực tiếp
+
+```ts
+@Component({...})
+export class SearchComponent {
+  query = signal('');
+  results = signal<string[]>([]);
+
+  constructor() {
+    effect(() => {
+      const q = this.query();
+      // ✅ Không cần allowSignalWrites nữa!
+      this.results.set(this.filterResults(q));
+    });
+  }
+
+  filterResults(q: string): string[] {
+    return items.filter(item => item.includes(q));
+  }
+}
+```
+
+### Ví dụ 2: Timing mới trong action
+
+```ts
+@Component({...})
+export class TimingComponent {
+  counter = signal(0);
+
+  constructor() {
+    effect(() => {
+      // Chạy SAU khi DOM đã cập nhật
+      // (không còn quá sớm như microtask)
+      console.log('Counter:', this.counter());
+      this.updateChart(); // DOM-safe operation
+    });
+  }
+
+  increment() {
+    this.counter.update(v => v + 1);
+    // Effect chạy trong cùng change detection cycle
+    // → DOM đã được update
+  }
+}
+```
+
+## So sánh effect() trước và sau Angular 19
+
+| Feature | Trước Angular 19 | Angular 19 |
+|---------|------------------|------------|
+| `allowSignalWrites` | Bắt buộc bật thủ công | Mặc định `true` |
+| Timing | Microtask | Change Detection cycle |
+| predictability | Có thể chạy sai lúc | Đồng bộ với component tree |
+| Khuyến nghị | Tránh ghi signal trong effect | An toàn để ghi signal |
+
+## Lưu ý quan trọng
+
+⚠️ `effect()` vẫn đang ở giai đoạn **Developer Preview** trong Angular 19. Tuy nhiên, những cập nhật này là bước tiến quan trọng hướng tới stable API.
+
+## Reference
+
+- [Angular 19 — Updates to effect()](https://angular.love/angular-19-whats-new)
+- [Angular 19 Release Blog](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
+- [effect() API Docs](https://angular.dev/api/core/effect)

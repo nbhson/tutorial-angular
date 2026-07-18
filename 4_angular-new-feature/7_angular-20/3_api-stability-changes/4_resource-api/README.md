@@ -1,0 +1,123 @@
+# 4. Resource API (Angular 20)
+
+## Tổng quan
+
+Angular 20 giới thiệu `resource()` — API mới để load **async data** (API calls, DB queries) một cách **signal-based**. `resource()` tự quản lý loading state, error state, và cache, thay thế patterns phức tạp trước đây.
+
+## API mới
+
+```typescript
+import { resource, signal } from '@angular/core';
+
+const userId = signal(1);
+
+const userProfile = resource({
+  request: userId,
+  loader: async ({ request: userId }) => {
+    const response = await fetch(`/api/users/${userId}`);
+    return response.json();
+  }
+});
+```
+
+## Tại sao cần feature này?
+
+| Trước | Sau (`resource()`) |
+|---|---|
+| Manual loading/error state | Auto `isLoading()`, `error()` |
+| Complex RxJS pipe | Simple async loader |
+| No built-in cache | Automatic cache |
+| Manual re-fetch | Auto re-fetch khi `request` thay đổi |
+
+## Ví dụ thực tế
+
+### 1. Basic Usage
+
+```typescript
+@Component({
+  selector: 'app-user-profile',
+  template: `
+    @if (profile.isLoading()) {
+      <p>Loading...</p>
+    } @else if (profile.error()) {
+      <p>Error: {{ profile.error() }}</p>
+    } @else {
+      <h2>{{ profile.value()?.name }}</h2>
+      <p>{{ profile.value()?.email }}</p>
+    }
+  `
+})
+export class UserProfileComponent {
+  userId = signal(1);
+
+  profile = resource({
+    request: this.userId,
+    loader: async ({ request: id }) => {
+      const res = await fetch(`/api/users/${id}`);
+      return res.json();
+    }
+  });
+}
+```
+
+### 2. Search
+
+```typescript
+@Component({
+  selector: 'app-search',
+  template: `
+    <input [value]="query()" (input)="onSearch($event)" />
+    @if (results.isLoading()) {
+      <p>Searching...</p>
+    } @else {
+      @for (item of results.value(); track item.id) {
+        <div>{{ item.name }}</div>
+      }
+    }
+  `
+})
+export class SearchComponent {
+  query = signal('');
+
+  results = resource({
+    request: this.query,
+    loader: async ({ request: q }) => {
+      if (!q) return [];
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      return res.json();
+    }
+  });
+
+  onSearch(event: Event) {
+    this.query.set((event.target as HTMLInputElement).value);
+  }
+}
+```
+
+### 3. With `defaultValue`
+
+```typescript
+const items = resource({
+  request: this.category,
+  loader: async ({ request: cat }) => {
+    const res = await fetch(`/api/items?category=${cat}`);
+    return res.json();
+  },
+  defaultValue: []  // Giá trị mặc định trước khi load xong
+});
+```
+
+## Best practices
+
+1. **Dùng `resource()`** thay vì manual fetch + state
+2. **Set `defaultValue`** để tránh undefined errors
+3. **Cache data** qua `request` signal thay đổi
+4. **Handle errors** với `profile.error()`
+5. **Combine** với `computed()` cho derived data
+
+## Chạy thử
+
+```bash
+cd 4_angular-new-feature/7_angular-20/3_api-stability-changes/4_resource-api
+npm install
+ng serve

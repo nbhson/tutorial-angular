@@ -1,73 +1,120 @@
-# New afterRenderEffect function
+# 5. afterRenderEffect
 
-Hàm afterRenderEffect trong Angular là một API thử nghiệm được thiết kế để xử lý các tác dụng phụ chỉ xảy ra sau khi thành phần kết xuất xong. Hiệu ứng chạy sau mỗi chu kỳ kết xuất nếu các phụ thuộc của nó thay đổi, cho phép các nhà phát triển phản ứng với các thay đổi trạng thái chỉ sau khi DOM được cập nhật.
+## Mô tả
 
-Trái ngược với 'afterRender' và 'afterNextRender', hiệu ứng này theo dõi các phần phụ thuộc được chỉ định và thực thi lại chúng sau mỗi chu kỳ kết xuất bất cứ khi nào chúng thay đổi, khiến nó trở nên lý tưởng cho các tác vụ sau kết xuất đang diễn ra liên quan đến dữ liệu phản ứng.
+`afterRenderEffect()` là lifecycle hook mới trong Angular 19 kết hợp giữa `afterRender()` và `effect()`. Nó chỉ chạy lại callback khi **các signal dependency thay đổi** SAU KHI component render xong — thay vì chạy mỗi lần render như `afterRender()`.
 
-'afterRender' và 'afterNextRender' không theo dõi bất kỳ phần phụ thuộc nào và luôn lên lịch gọi lại chạy sau chu kỳ kết xuất.
+## Vấn đề giải quyết
 
 ```ts
- counter = signal(0);
-
-  constructor() {
-    afterRenderEffect(() => {
-      console.log('after render effect', this.counter());
-    })
-
-    afterRender(() => {
-      console.log('after render', this.counter())
-    })
-  }
+// ❌ afterRender() — chạy MỖI LẦN render, dù signal không thay đổi
+afterRender(() => {
+  console.log('rendered!'); // Log cả khi counter không đổi
+});
 ```
 
-Trong ví dụ đã cho, lệnh gọi lại afterRender sẽ được thực thi sau mỗi chu kỳ kết xuất. Mặt khác, lệnh gọi lại afterRenderEffect sẽ chỉ được thực thi sau các chu kỳ kết xuất nếu giá trị của bộ đếm tín hiệu đã thay đổi.
+```ts
+// ✅ afterRenderEffect() — chỉ chạy KHI dependency thay đổi
+afterRenderEffect(() => {
+  console.log('counter:', this.counter()); // Chỉ log khi counter thay đổi
+});
+```
 
-## afterRender()
-
-- Mục đích: Là một lifecycle hook của Angular, được gọi một lần sau mỗi lần component render xong (bao gồm cả lần render đầu tiên).
-
-- Đặc điểm:
-  - Không tự động theo dõi các dependency (ví dụ: signals). Nó chạy mỗi khi component render, bất kể giá trị của signal có thay đổi hay không.
-  - Phù hợp cho các tác vụ cần truy cập DOM sau khi view được cập nhật.
-
-Ví dụ:
+## Cú pháp
 
 ```ts
+afterRenderEffect(() => {
+  // Đọc signal ở đây — Angular tự track dependency
+  const value = this.someSignal();
+  // Side effect sau render khi value thay đổi
+  doSomething(value);
+});
+```
+
+## Files trong project
+
+### `src/app/app.component.ts`
+
+```ts
+import { afterRender, afterRenderEffect, Component, signal } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+})
+export class AppComponent {
+  counter = signal(0);
   number = 0;
 
   constructor() {
+    // ✅ Only runs when counter() changes, after render
+    afterRenderEffect(() => {
+      console.log('after render effect', this.counter());
+    });
+
+    // ❌ Runs every render, even if counter unchanged
     afterRender(() => {
-      console.log('after render', this.counter())
-    })
+      console.log('after render', this.counter());
+    });
+  }
+
+  updateSignal() {
+    this.counter.update(value => value + 1);
+    console.log('update view', this.counter());
   }
 
   updateNumber() {
     this.number++;
     console.log('update number', this.number);
   }
+}
 ```
 
-Sẽ log giá trị counter mỗi khi component render lại, ngay cả khi counter không thay đổi
+### `src/app/app.component.html`
 
+```html
+<button (click)="updateSignal()">Update signal</button>
+<button (click)="updateNumber()">Update normal view</button>
 
-## afterRenderEffect() (Giả định)
-
-- Giả thuyết: Nếu afterRenderEffect là một hàm tùy chỉnh kết hợp effect() và afterRender(), nó sẽ:
-- Tạo một reactive effect (sử dụng effect()) được kích hoạt sau mỗi lần render.
-- Tự động theo dõi các signals được sử dụng bên trong nó và chỉ chạy lại khi các signals này thay đổi.
-
-Ví dụ:
-
-```typescript
-afterRenderEffect(() => {
-  console.log('after render effect', this.counter());
-});
+<br>
+{{ counter() }}
+<br>
+{{ number }}
 ```
 
-Sẽ log giá trị counter chỉ khi counter thay đổi, nhưng sau khi component đã render xong.
+## Flow so sánh
 
-Tóm tắt sự khác biệt
-Feature	            afterRender()       	afterRenderEffect() (Giả định)
-Kích hoạt	        Sau mỗi lần render	    Sau mỗi lần render, nhưng chỉ khi dependency thay đổi
-Theo dõi signals	❌ Không	               ✅ Có
-Use Case	        DOM operations, side effects không phụ thuộc giá trị	Side effects phụ thuộc vào giá trị signals
+```
+Click "Update signal":
+├── counter.signal++ → re-render
+├── afterRenderEffect: CHẠY (counter thay đổi) ✅
+└── afterRender: CHẠY ✅
+
+Click "Update normal view":
+├── number++ → re-render (signal KHÔNG thay đổi)
+├── afterRenderEffect: KHÔNG chạy (no dependency change) ✅
+└── afterRender: CHẠY (luôn chạy) ❌ wasteful!
+```
+
+## So sánh chi tiết
+
+| Feature | `afterRender()` | `afterRenderEffect()` |
+|---------|----------------|----------------------|
+| Khi chạy | Sau mỗi lần render | Sau render khi dependency thay đổi |
+| Track signals | ❌ Không | ✅ Có |
+| Return value | void | Có thể return effect cleanup |
+| Use case | DOM operations cố định | Side effects phụ thuộc signal |
+| Performance | Chạy thừa nếu không thay đổi | Tối ưu — chỉ chạy khi cần |
+
+## Khi nào dùng afterRenderEffect?
+
+- **Third-party library integration** cần update khi data thay đổi (chart, map)
+- **DOM manipulation** phụ thuộc reactive data
+- **Analytics/tracking** chỉ khi user thực sự thay đổi state
+- **Scroll position** restore sau khi data load xong
+
+## Reference
+
+- [Angular afterRenderEffect API](https://angular.dev/api/core/afterRenderEffect)
+- [Angular 19 Release Notes](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
+- [afterRender vs afterRenderEffect](https://angular.love/angular-19-whats-new)

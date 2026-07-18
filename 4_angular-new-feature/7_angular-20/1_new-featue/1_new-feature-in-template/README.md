@@ -1,85 +1,40 @@
-# Hỗ trợ các tính năng mới trong templates
+# 1. `@let` — Local Variables in Templates (Angular 20)
 
-Angular 20 giới thiệu một số tính năng mới trong template compiler được thiết kế để nâng cao trải nghiệm developer và phù hợp với các biểu thức typescript. Mục tiêu cuối cùng là để tất cả các biểu thức template trong Angular hoạt động chính xác như các biểu thức TypeScript. Trong các phiên bản Angular tương lai, chúng ta có thể mong đợi hỗ trợ cho arrow functions và sự phù hợp đầy đủ với đặc tả optional-chaining – xem GitHub issue.
+## Tổng quan
 
-Dưới đây là những cập nhật đáng chú ý nhất được giới thiệu trong Angular 20: template string literals, toán tử lũy thừa, từ khóa in, và toán tử void. Hãy cùng tìm hiểu từng tính năng.
+Angular 20 giới thiệu `@let` — cho phép khai báo **biến cục bộ ngay trong template** mà **không cần thêm logic vào Component class**. Đây là một phần của initiative "New Features in Templates" nhằm mang更多 power vào template layer.
 
-## Template Literals
+## API mới
 
-Trước đây, việc nối chuỗi trong Angular templates có thể rất dài dòng. Bây giờ bạn có thể sử dụng template literals giống JavaScript một cách trực tiếp trong component templates.
-
-Lưu ý rằng template literals trong Angular không hoạt động với inline-html được viết trong typescript template literal. Xem issue này để biết thêm thông tin.
-
-### Untagged Template Literals:
-
-```typescript
-// user-avatar.ts 
-@Component({
-  selector: 'app-user-avatar',
-  imports: [NgOptimizedImage],
-  templateUrl: './user-avatar.html',
-})
-export class UserAvatar {
-  readonly userId = input.required<string>();
-}
+```
+@let <tên> = <biểu thức>;
 ```
 
-```html
-<!-- user-avatar.html -->
-<img
-  [ngSrc]="`https://i.pravatar.cc/150?u=${userId()}`"
-  width="100"
-  height="100"
-/>
-<p>{{ `User id: ${userId()}` }}</p>
-```
+`@let` khai báo một biến cục bộ trong template, giá trị được tính toán và **tự động cập nhật** khi binding thay đổi. Biến chỉ có hiệu lực trong phạm vi block mà nó được khai báo (`@if`, `@for`, `@switch`, hoặc root template).
 
-### Tagged Template Literals:
+## Tại sao cần `@let`?
 
-```typescript
-@Component({
-  selector: 'app-user-details',
-  template: '<p>{{ greet`Hello, ${name()}` }}</p>',
-})
-export class UserDetails {
-  readonly name = input<string>('John');
+Trước Angular 20, nếu bạn muốn tái sử dụng một giá trị computed trong template, bạn có hai lựa chọn đều có nhược điểm:
 
-  greet(strings: TemplateStringsArray, name: string) {
-    return strings[0] + name + strings[1] + '!';
-  }
-}
-```
+| Cách làm | Nhược điểm |
+|---|---|
+| Tính lại expression nhiều lần trong template | Code trùng lặp, kém maintainable |
+| Tạo thêm property/method trong Component class | Component tăng thêm code, tăng coupling |
 
-Cách tiếp cận này làm cho các phép nội suy phức tạp trở nên dễ đọc và bảo trì hơn nhiều.
+`@let` giải quyết vấn đề này bằng cách cho phép bạn khai báo biến cục bộ trực tiếp trong template.
 
-## Toán tử Lũy thừa
+## Ví dụ thực tế
 
-Angular 20 thêm hỗ trợ cho toán tử lũy thừa (**) trong templates, cho phép bạn tính lũy thừa của các số mà không cần viết custom pipes.
-
-Ví dụ:
+### Component (`app.ts`)
 
 ```typescript
+import { Component } from '@angular/core';
+
 @Component({
-  template: '{{2 ** 3}}'
+  selector: 'app-root',
+  templateUrl: './app.html',
 })
-export class AppComponent {}
-```
-
-Template này sẽ render ra 8, vì 2 lũy thừa 3 bằng 8.
-
-## Từ khóa In
-
-Toán tử in cho phép bạn kiểm tra xem một object có chứa một thuộc tính cụ thể trước khi nội suy giá trị của nó hay không. Toán tử này hữu ích cho việc thu hẹp types hoặc hiển thị có điều kiện các thuộc tính trong components của bạn.
-
-Ví dụ:
-
-```typescript
-// combat-logs.ts
-@Component({
-  selector: 'app-combat-logs',
-  templateUrl: './combat-logs.html',
-})
-export class CombatLog {
+export class App {
   readonly attacks = [
     { magicDamage: 10 },
     { physicalDamage: 10 },
@@ -88,8 +43,9 @@ export class CombatLog {
 }
 ```
 
+### Template (`app.html`)
+
 ```html
-<!-- combat-logs.html -->
 @for (attack of attacks; track attack) {
   @let hasMagicDamage = 'magicDamage' in attack;
   @if (hasMagicDamage) {
@@ -102,20 +58,173 @@ export class CombatLog {
 }
 ```
 
-## Toán tử Void
+### Kết quả xuất ra
 
-Toán tử mới cuối cùng là void. Sử dụng nó để bỏ qua rõ ràng giá trị trả về của một bound listener, ngăn chặn việc gọi không mong muốn đến event.preventDefault() nếu handler của bạn trả về false.
+```
+Dealt 10 points of magic damage.
+Dealt 10 points of physical damage.
+Dealt 10 points of magic damage.
+Dealt 10 points of physical damage.
+```
 
-Ví dụ:
+## Phân tích chi tiết
+
+### 1. `@let` khai báo biến cục bộ
+
+```html
+@let hasMagicDamage = 'magicDamage' in attack;
+```
+
+- `'magicDamage' in attack` là một **JavaScript expression** kiểm tra key `magicDamage` có tồn tại trong object `attack`
+- `hasMagicDamage` là biến cục bộ, **tự động cập nhật** khi `attack` thay đổi
+- Biến **chỉ sống trong scope** của `@for` block
+
+### 2. Kết hợp với `@if`
+
+```html
+@if (hasMagicDamage) {
+  <p>{{ `Dealt ${attack.magicDamage} points of magic damage.` }}</p>
+}
+```
+
+- `@if` sử dụng biến `hasMagicDamage` để quyết định render hay không
+- Template string `` {{ `Dealt ${attack.magicDamage} points of magic damage.` }} `` hiển thị giá trị damage
+
+### 3. Pattern "check key existence"
 
 ```typescript
-@Directive({
-  host: { '(mousedown)': 'void handleMousedown()' },
-})
-export class MouseDownDirective {
-  handleMousedown(): boolean {
-    // Business logic...
-    return false;
+// JavaScript 'in' operator kiểm tra key existence
+'magicDamage' in attack  // → true nếu attack có key magicDamage
+'physicalDamage' in attack // → true nếu attack có key physicalDamage
+```
+
+Đây là pattern phổ biến khi xử lý **union types** hoặc **optional properties** trong template.
+
+## So sánh trước và sau Angular 20
+
+### Trước Angular 20
+
+```typescript
+// Component class - phải thêm logic
+export class App {
+  readonly attacks = [
+    { magicDamage: 10 },
+    { physicalDamage: 10 },
+    { magicDamage: 10, physicalDamage: 10 },
+  ];
+
+  // Phải tạo method trong class
+  hasMagicDamage(attack: any): boolean {
+    return 'magicDamage' in attack;
+  }
+
+  hasPhysicalDamage(attack: any): boolean {
+    return 'physicalDamage' in attack;
   }
 }
 ```
+
+```html
+<!-- Template - gọi method -->
+@for (attack of attacks; track attack) {
+  @if (hasMagicDamage(attack)) {
+    <p>{{ `Dealt ${attack.magicDamage} points of magic damage.` }}</p>
+  }
+  @if (hasPhysicalDamage(attack)) {
+    <p>{{ `Dealt ${attack.physicalDamage} points of physical damage.` }}</p>
+  }
+}
+```
+
+### Sau Angular 20 (với `@let`)
+
+```typescript
+// Component class - giữ nguyên, gọn gàng
+export class App {
+  readonly attacks = [
+    { magicDamage: 10 },
+    { physicalDamage: 10 },
+    { magicDamage: 10, physicalDamage: 10 },
+  ];
+}
+```
+
+```html
+<!-- Template - khai báo biến cục bộ -->
+@for (attack of attacks; track attack) {
+  @let hasMagicDamage = 'magicDamage' in attack;
+  @if (hasMagicDamage) {
+    <p>{{ `Dealt ${attack.magicDamage} points of magic damage.` }}</p>
+  }
+  @let hasPhysicalDamage = 'physicalDamage' in attack;
+  @if (hasPhysicalDamage) {
+    <p>{{ `Dealt ${attack.physicalDamage} points of physical damage.` }}</p>
+  }
+}
+```
+
+## Các use case phổ biến
+
+### 1. Tái sử dụng giá trị computed
+
+```html
+@let total = items.length;
+@if (total > 0) {
+  <p>Có {{ total }} sản phẩm</p>
+} @else {
+  <p>Không có sản phẩm</p>
+}
+```
+
+### 2. Cache giá trị expensive computation
+
+```html
+@let formattedPrice = (product.price * (1 - product.discount / 100)) | currency:'VND';
+<span>{{ formattedPrice }}</span>
+<span>{{ formattedPrice }}</span>
+```
+
+### 3. Kiểm tra điều kiện phức tạp
+
+```html
+@let isLoggedIn = user !== null && user.isActive;
+@let isAdmin = isLoggedIn && user.role === 'admin';
+@if (isAdmin) {
+  <admin-panel />
+}
+```
+
+### 4. Local variable trong `@for`
+
+```html
+@for (item of items; track item.id) {
+  @let isEven = $index % 2 === 0;
+  <div [class.even]="isEven">
+    {{ item.name }}
+  </div>
+}
+```
+
+## Scope rules
+
+- `@let` chỉ có hiệu lực trong **block** mà nó được khai báo
+- Không thể truy cập `@let` ở **ngoài block** khai báo nó
+- Tên biến phải **duy nhất** trong scope
+
+```html
+@if (condition) {
+  @let value = 1;
+  <p>{{ value }}</p>  <!-- ✅ OK -->
+}
+<p>{{ value }}</p>  <!-- ❌ Error: value không tồn tại -->
+```
+
+## Chạy thử
+
+```bash
+cd 4_angular-new-feature/7_angular-20/1_new-featue/1_new-feature-in-template
+npm install
+ng serve
+```
+
+Mở `http://localhost:4200` để xem kết quả.

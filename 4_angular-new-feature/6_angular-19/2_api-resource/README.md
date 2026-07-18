@@ -1,66 +1,171 @@
-# New (experimental) API: resource
+# 2. Resource API
 
-Angular đang giới thiệu một API thử nghiệm gọi là Resource (), được thiết kế để quản lý các hoạt động không đồng bộ. 
+## Mô tả
 
-Nó có các cơ chế tích hợp để ngăn chặn các race conditions, theo dõi trạng thái tải, xử lý lỗi, cập nhật giá trị theo cách thủ công và kích hoạt dữ liệu tìm nạp thủ công khi cần thiết.
+`resource()` là API mới trong Angular 19 (Developer Preview) giúp quản lý **async data loading** theo kiểu reactive, thay thế cách dùng `switchMap + httpClient` truyền thống. API này tích hợp liền mạch với Signals.
 
-Dưới đây là một ví dụ về việc sử dụng tài nguyên:
+## Vấn đề giải quyết
+
+Trước đây, loading async data trong Angular thường involve:
+```ts
+// Cách truyền thống — nhiều boilerplate
+items$ = this.route.paramMap.pipe(
+  switchMap(params => this.http.get(`/api/items/${params.get('id')}`))
+);
+```
+
+`resource()` đơn giản hóa:
+```ts
+// Cách mới — reactive, signal-based
+items = resource({
+  request: () => this.itemId(),
+  loader: async (params) => {
+    return await fetch(`/api/items/${params.request}`);
+  }
+});
+```
+
+## Cú pháp
 
 ```ts
-fruitId = signal<string>('apple-id-1');
+resource<T, R>({
+  request: () => R,           // Signal hoặc getter — input
+  loader: async (params) => { // Async function — fetch data
+    params.request;           // Giá trị từ request
+    params.abortSignal;       // AbortController signal
+    return data as T;
+  }
+}): ResourceRef<T>
+```
 
-  fruitDetails = resource({
-    request: this.fruitId,
+`ResourceRef<T>` cung cấp:
+- `.value` — Signal chứa data
+- `.isLoading` — Signal boolean
+- `.error` — Signal chứa error
+- `.reload()` — Trigger reload
+- `.update()` — Update value locally
+
+## Files trong project
+
+### `src/app/service/resource.service.ts` — Service chính
+
+```ts
+import { Injectable, resource, signal } from '@angular/core';
+
+interface Todo {
+  userId: number;
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
+@Injectable({ providedIn: 'root' })
+export class ResourceService {
+  // Input signal — thay đổi sẽ trigger reload
+  todoId = signal<string>('1');
+
+  // Resource — tự động fetch khi todoId thay đổi
+  todoDetails = resource({
+    request: this.todoId,
     loader: async (params) => {
-      const fruitId = params.request;
-      const response = await fetch(`https://api.example.com/fruit/${fruitId}`, {signal: params.abortSignal});
-      return await response.json() as Fruit;
+      const todoId = params.request;
+      const response = await fetch(
+        `https://jsonplaceholder.typicode.com/todos/${todoId}`,
+        { signal: params.abortSignal }
+      );
+      return await response.json() as Todo;
     }
   });
 
-  protected isFruitLoading = this.fruitDetails.isLoading;
-  protected fruit = this.fruitDetails.value;
-  protected error = this.fruitDetails.error;
+  // Convenience accessors
+  isTodoLoading = this.todoDetails.isLoading;
+  todo = this.todoDetails.value;
+  error = this.todoDetails.error;
 
-
-  protected updateFruit(name: string): void {
-    this.fruitDetails.update((fruit) => (fruit ? {
-      ...fruit,
-      name,
-    } : undefined))
+  // Update locally
+  updateTodo(name: string): void {
+    this.todoDetails.update((fruit) =>
+      fruit ? { ...fruit, name } : undefined
+    );
   }
 
-  protected reloadFruit(): void {
-    this.fruitDetails.reload();
+  // Manual reload
+  reloadTodo(): void {
+    this.todoDetails.reload();
   }
 
-  protected onFruitIdChange(fruitId: string): void {
-    this.fruitId.set(fruitId);
+  // Change input → triggers automatic reload
+  onTodoChange(id: string): void {
+    this.todoId.set(id);
   }
+}
 ```
 
-Hãy bắt đầu với việc khai báo resource. Tham số yêu cầu tùy chọn chấp nhận tín hiệu đầu vào mà resource không đồng bộ được liên kết (trong ví dụ của chúng tôi, nó là trái cây, nhưng nó cũng có thể là một tín hiệu được tính toán bao gồm nhiều giá trị). Chúng tôi cũng xác định chức năng Trình tải, trong đó chúng tôi không đồng bộ hóa dữ liệu (chức năng sẽ trả về lời hứa). resource được tạo có tên là FruitDetails cho phép chúng ta, trong số những thứ khác:
-
-- Truy cập tín hiệu giá trị hiện tại (cũng trả về không xác định khi tài nguyên không có sẵn vào lúc này),
-- Truy cập tín hiệu trạng thái (một trong: nhàn rỗi, lỗi, tải, tải lại, giải quyết, cục bộ),
-- Truy cập các tín hiệu bổ sung như ‘isloading, hoặc‘ lỗi,
-- Trình kích hoạt ‘Trình tải chức năng một lần nữa (sử dụng phương thức tải lại),
-- Cập nhật trạng thái cục bộ của tài nguyên (sử dụng phương thức ‘Cập nhật))
-
-Tài nguyên sẽ được tự động tải lại nếu tín hiệu 'yêu cầu (trong trường hợp của chúng tôi Fruitid) thay đổi. Trình tải cũng được kích hoạt khi tài nguyên được tạo lần đầu tiên.
-
-Còn Rxjs Interop thì sao? Angular cũng cung cấp một đối tác RXJS của phương thức tài nguyên được gọi là RxResource. Trong trường hợp này, phương thức bộ tải trả về có thể quan sát được, nhưng tất cả các thuộc tính khác vẫn là tín hiệu.
+### `src/app/app.component.ts` — Component sử dụng
 
 ```ts
-fruitDetails = rxResource({
-    request: this.fruitId,
-    loader: (params) => this.httpClient.get<Fruit>(`https://api.example.com/fruit/${params.request}`)
-  })
+import { Component, inject } from '@angular/core';
+import { ResourceService } from './service/resource.service';
+import { JsonPipe } from '@angular/common';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  imports: [JsonPipe]
+})
+export class AppComponent {
+  resource = inject(ResourceService);
+
+  ngOnInit(): void {
+    this.resource.onTodoChange('2');  // Trigger load todo #2
+    this.resource.reloadTodo();       // Manual reload
+  }
+}
 ```
+
+## Flow diagram
+
+```
+todoId signal thay đổi
+        │
+        ▼
+   resource loader chạy
+   (fetch API call)
+        │
+        ▼
+   isLoading = true
+        │
+        ▼
+   Response về
+        │
+        ├──→ todo.value = data
+        └──→ isLoading = false
+```
+
+## So sánh với approaches khác
+
+| Feature | RxJS + switchMap | resource() | httpResource() (v20) |
+|---------|-----------------|------------|---------------------|
+| Reactive | ✅ | ✅ | ✅ |
+| Abort signal | Manual | Built-in | Built-in |
+| Loading state | Manual tracking | `.isLoading` | `.isLoading` |
+| Error handling | subscribe/error | `.error` | `.error` |
+| Cache | Manual | reload() | Built-in |
+| Boilerplate | Nhiều | Ít | Ít nhất |
+
+## Khi nào dùng resource()?
+
+- **Data fetching** dựa trên reactive inputs (signals)
+- **REST API calls** cần automatic refetch
+- **Search functionality** cần debounce + abort
+- **Dashboard widgets** cần periodic refresh
+
+## Lưu ý
+
+⚠️ `resource()` đang ở giai đoạn **Developer Preview** trong Angular 19 — API có thể thay đổi ở phiên bản stable.
+
 ## Reference
 
-https://angular.love/angular-19-whats-new
-
-https://blog.angular.dev/meet-angular-v19-7b29dfd05b84
-
-https://medium.com/@rajat29gupta/highlight-key-new-features-in-angular-19-de77981756c7
+- [Angular Resource API Docs](https://angular.dev/guide/signals/resource)
+- [Angular 19 Release Notes](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
+- [JSONPlaceholder API](https://jsonplaceholder.typicode.com/) — Mock API used in demo

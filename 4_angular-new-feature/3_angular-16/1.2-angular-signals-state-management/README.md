@@ -1,59 +1,140 @@
-# 12AngularSignalsStateManagement
+# Signals State Management (Angular 16)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.1.6.
+> Ví dụ thực tế về cách sử dụng Signals để quản lý state trong Angular application.
 
-## Development server
+## Tổng quan
 
-To start a local development server, run:
+Signals có thể được sử dụng như một state management solution đơn giản, thay thế cho RxJS-based stores trong nhiều use cases.
 
-```bash
-ng serve
+## Signal Service Pattern
+
+```ts
+// counter.service.ts
+@Injectable({ providedIn: 'root' })
+export class CounterService {
+  // Private writable signal
+  private countSignal = signal(0);
+
+  // Public read-only signal
+  readonly count = this.countSignal.asReadonly();
+
+  increment() {
+    this.countSignal.update(v => v + 1);
+  }
+
+  decrement() {
+    this.countSignal.update(v => v - 1);
+  }
+
+  reset() {
+    this.countSignal.set(0);
+  }
+}
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Component Usage
 
-## Code scaffolding
+```ts
+@Component({
+  selector: 'app-counter',
+  template: `
+    <h2>Count: {{ count() }}</h2>
+    <button (click)="increment()">+</button>
+    <button (click)="decrement()">-</button>
+    <button (click)="reset()">Reset</button>
+  `
+})
+export class CounterComponent {
+  private counterService = inject(CounterService);
+  count = this.counterService.count;
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+  increment() { this.counterService.increment(); }
+  decrement() { this.counterService.decrement(); }
+  reset() { this.counterService.reset(); }
+}
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Complex State with Signals
 
-```bash
-ng generate --help
+```ts
+interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
+@Injectable({ providedIn: 'root' })
+export class TodoService {
+  private todosSignal = signal<Todo[]>([]);
+  private filterSignal = signal<'all' | 'active' | 'completed'>('all');
+
+  // Public read-only signals
+  readonly todos = this.todosSignal.asReadonly();
+  readonly filter = this.filterSignal.asReadonly();
+
+  // Computed - filtered todos
+  readonly filteredTodos = computed(() => {
+    switch (this.filterSignal()) {
+      case 'active':
+        return this.todosSignal().filter(t => !t.completed);
+      case 'completed':
+        return this.todosSignal().filter(t => t.completed);
+      default:
+        return this.todosSignal();
+    }
+  });
+
+  // Computed - stats
+  readonly totalCount = computed(() => this.todosSignal().length);
+  readonly activeCount = computed(() => this.todosSignal().filter(t => !t.completed).length);
+  readonly completedCount = computed(() => this.todosSignal().filter(t => t.completed).length);
+
+  addTodo(title: string) {
+    this.todosSignal.update(todos => [
+      ...todos,
+      { id: Date.now(), title, completed: false }
+    ]);
+  }
+
+  toggleTodo(id: number) {
+    this.todosSignal.update(todos =>
+      todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
+    );
+  }
+
+  setFilter(filter: 'all' | 'active' | 'completed') {
+    this.filterSignal.set(filter);
+  }
+}
 ```
 
-## Building
+## Flow Diagram
 
-To build the project run:
+```
+Traditional State Management (RxJS):
+  Component → Dispatch Action → Store → Reducer → New State → Observable → Component
 
-```bash
-ng build
+Signals State Management:
+  Component → Call Service Method → Signal Update → Computed Recalculates → Template Updates
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## So sánh với RxJS Store
 
-## Running unit tests
+| Feature | Signals | RxJS Store (NgRx) |
+|---------|---------|-------------------|
+| Boilerplate | Ít | Nhiều (Actions, Reducers) |
+| Learning curve | Thấp | Cao |
+| DevTools | Chưa có | ✅ Redux DevTools |
+| Middleware | Chưa có | ✅ Effects |
+| Perfect for | Simple-Medium apps | Complex apps |
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Best Practices
 
-```bash
-ng test
-```
+1. **Private signal, public readonly** – Encapsulation
+2. **Computed cho derived state** – Không store redundant data
+3. **Service pattern** – Centralized state management
+4. **Immutable updates** – Luôn dùng update/set, không mutate
 
-## Running end-to-end tests
+---
 
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+**Summary**: Signals có thể được sử dụng như state management solution đơn giản. Với signal, computed, và service pattern, bạn có thể quản lý state hiệu quả mà không cần RxJS store phức tạp.

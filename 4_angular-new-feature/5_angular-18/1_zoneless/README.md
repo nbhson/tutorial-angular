@@ -1,207 +1,306 @@
-# Zoneless
+# Zoneless Change Detection
 
-Trong lịch sử, một thư viện có tên là zone.js đã chịu trách nhiệm kích hoạt phát hiện thay đổi của Angular. Thư viện này đi kèm với một số kinh nghiệm của nhà phát triển và nhược điểm về hiệu suất. Chúng tôi đã làm việc trong vài năm để hướng tới một cách sử dụng Angular không phụ thuộc vào zone.js và chúng tôi vô cùng vui mừng được chia sẻ các API thử nghiệm đầu tiên cho không vùng!
+## Tổng quan
 
-> Change detection has always been a hot topic, and it’s no wonder – it’s one of the core concepts of any framework.
+Zoneless là một experimental feature trong Angular 18 cho phép chạy ứng dụng **không cần zone.js** — thư viện truyền thống chịu trách nhiệm kích hoạt change detection. Mục tiêu là loại bỏ overhead của zone.js, giúp ứng dụng nhanh hơn và developer có kiểm soát tốt hơn về thời điểm change detection xảy ra.
 
-Trong Angular, chủ đề này đặc biệt gây tranh cãi, chủ yếu là do bản chất 'kỳ diệu' của các cơ chế phát hiện thay đổi được hỗ trợ bởi Zone.js. Gần đây, lĩnh vực này đã trải qua những cập nhật đáng kể, đặc biệt là với việc giới thiệu các tín hiệu và khả năng chọn không sử dụng Zone.js. Hãy cùng khám phá những thay đổi này đã diễn ra như thế nào.
+> Change detection has always been a hot topic, and it's no wonder – it's one of the core concepts of any framework.
 
-## Understanding Change Detection in Angular
+### Vấn đề với Zone.js
 
-Khi thảo luận về phát hiện thay đổi, tôi thấy hữu ích khi chia nó thành hai khía cạnh của việc thực hiện: 'khi nào' và 'như thế nào'. Hiểu cả hai yếu tố là điều cần thiết để hiểu quy trình phát hiện thay đổi tổng thể của Angular.
+- **Performance overhead**: Patch tất cả async operations (HTTP, events, timers), thêm chi phí không cần thiết
+- **Debugging complexity**: Zone.js sửa đổi cách async hoạt động, khiến debug khó khăn hơn
+- **Unnecessary change detection**: Change detection chạy ngay cả khi state không thay đổi
+- **Compatibility issues**: Một số modern browser APIs và third-party libraries không hoạt động tốt với zone.js
 
-> Change detection là quy trình Angular sử dụng để đảm bảo giao diện người dùng của ứng dụng luôn được cập nhật với dữ liệu mới nhất. Điều này xảy ra tự động bất cứ khi nào có điều gì đó thay đổi trong ứng dụng của bạn, cho dù đó là hành động của người dùng, yêu cầu HTTP hay sự kiện hẹn giờ.
-> Trong Angular, mỗi thành phần đều có cơ chế phát hiện thay đổi riêng, kiểm tra xem các giá trị trong mẫu của thành phần có thay đổi hay không và cập nhật DOM cho phù hợp.
+### Zoneless giải quyết vấn đề gì?
 
-### When?
+- Loại bỏ zone.js → ứng dụng gọn gàng hơn, nhanh hơn
+- Developer kiểm soát thời điểm chạy change detection
+- Kết hợp với Signals để tự động cập nhật UI mà không cần gọi thủ công
 
-Như bạn có thể mong đợi, phần 'khi nào' có liên quan đến lịch trình phát hiện thay đổi. Nó bao gồm thời điểm phát hiện thay đổi xảy ra và các yếu tố dẫn đến việc thực hiện nó.
+## Cấu trúc files
 
-Ngoài tùy chọn kích hoạt phát hiện thay đổi theo cách thủ công, công việc chủ yếu của người lập lịch là xử lý điều này cho chúng tôi. Kể từ những ngày đầu của Angular, bộ lập lịch phát hiện thay đổi đã dựa trên thư viện Zone.js. Thư viện này theo dõi các tác vụ khác nhau bằng cách vá các API của trình duyệt và chặn việc thực thi tác vụ.
-
-`Đơn giản hóa một chút, chúng ta có thể nói rằng vùng của Angular (NgZone) kiểm tra xem hàng đợi microtask có trống hay không sau mỗi thao tác bị chặn kết thúc. Nếu có, nó phát ra một sự kiện đặc biệt, sau đó được sử dụng bởi bộ lập lịch, cuối cùng dẫn đến chạy phát hiện thay đổi. Chúng tôi sẽ không đi sâu vào chi tiết ở đây.`
-
-Bài học quan trọng là hiểu rằng Zone.js cung cấp cho Angular các gợi ý về các hoạt động đã hoàn thành, nhắc framework phản ứng bằng cách chạy phát hiện thay đổi. Điều quan trọng là bộ đôi này không biết tại thời điểm này liệu có bất kỳ dữ liệu nào liên kết với mẫu đã thực sự thay đổi hay không, có nghĩa là việc làm mới có thể cần thiết hoặc không.
-
-### How?
-
-Phần 'làm thế nào' tập trung vào cơ chế thực hiện phát hiện thay đổi, bao gồm việc duyệt cây thành phần và quá trình kiểm tra các thay đổi. Sau khi lên lịch chạy phát hiện thay đổi, điều cần thiết là phải hiểu điều này có ý nghĩa gì đối với ứng dụng của chúng tôi, cách thực hiện và kết quả.
-
-Cấu trúc thành phần của Angular tạo thành một cây. Trong cấu hình mặc định, các quy tắc sau mô tả cách quy trình được thực hiện ở cấp độ cao:
-
-- Quá trình bắt đầu từ (các) thành phần gốc.
-- Toàn bộ cây thành phần được kiểm tra các thay đổi, có nghĩa là mọi nút đều được truy cập.
-- Hướng di chuyển là từ trên xuống dưới.
-- Thứ tự chính xác của việc truy cập các nút tuân theo thuật toán tìm kiếm độ sâu đầu tiên (DFS).
-  
-![alt text](change-detection.gif)
-
-Điều cần thiết là phải giải quyết một quan niệm sai lầm phổ biến: 
-- Các thành phần Angular không được 'hiển thị lại' trong quá trình phát hiện thay đổi. 
-- Điều này ngụ ý rằng toàn bộ DOM mẫu thành phần đã được thay thế, điều này không đúng. 
-- Angular đủ thông minh để chỉ cập nhật các nút DOM (hoặc thậm chí chỉ các thuộc tính riêng lẻ) thực sự cần thay đổi.
-
-### Change detection strategies – OnPush
-
-Trong Angular, có hai chiến lược phát hiện thay đổi: `Default` và `OnPush`.  Các quy tắc được mô tả trong chương 'Làm thế nào?' phác thảo hiệu quả chiến lược Mặc định. Vậy, còn OnPush thì sao? Nó khác nhau như thế nào?
-
-Các quy tắc cơ bản để đi qua cây thành phần vẫn giữ nguyên, nhưng OnPush cho phép chúng ta 'cắt' hoặc bỏ qua một số nhánh trong quá trình phát hiện thay đổi. Điều này dẫn đến ít hoạt động được thực hiện hơn, dẫn đến hiệu suất tốt hơn.
-
-Khi một thành phần sử dụng OnPush, nó (và các thành phần con của nó) sẽ không phải lúc nào cũng được kiểm tra trong quá trình phát hiện thay đổi. Thay vào đó, chúng sẽ chỉ được kiểm tra khi được đánh dấu là 'bẩn'. Toàn bộ nhánh bị bỏ qua nếu thành phần không được đánh dấu là bẩn.
-
-Có thể kết hợp các thành phần `Default` và `OnPush` trong ứng dụng; ví dụ: nếu một thành phần mẹ là OnPush và một thành phần con là Default, con vẫn sẽ được kiểm tra các thay đổi miễn là nó được truy cập (có nghĩa là cha bị bẩn và không bị cắt).
-
-Tại thời điểm này, chúng ta cũng có thể xem lại quy tắc rằng 'toàn bộ cây thành phần được kiểm tra các thay đổi, có nghĩa là mọi nút đều được truy cập'. Điều này không còn đúng nếu chúng ta sử dụng các thành phần OnPush, tạo thành ngoại lệ của chúng ta.
-
-![alt text](onPush.gif)
-
-## Zones and their role
-
-Angular theo truyền thống đã sử dụng zone.js để vá các hoạt động không đồng bộ như:
-
-- HTTP requests (success/error).
-- Event listeners (e.g., button clicks).
-- Timers like setTimeout or setInterval.
- 
-> https://stackblitz.com/edit/zoneless-deborahk-ocfystv1?file=src%2Fapp.config.ts,src%2Fmain.ts
-
-Khi bất kỳ thao tác nào trong số này được hoàn thành, zone.js sẽ tự động kích hoạt cơ chế phát hiện thay đổi của Angular, đảm bảo giao diện người dùng luôn đồng bộ. Điều này giúp việc phát triển dễ dàng hơn, vì các nhà phát triển không cần phải lo lắng về việc cập nhật giao diện người dùng theo cách thủ công.
-
-## The problems with Zones
-
-While zone.js simplifies development, it introduces some challenges:
-
-- Performance overhead: Bằng cách patching tất cả các hoạt động không đồng bộ, zone.js thêm chi phí không cần thiết, đặc biệt là trong các ứng dụng lớn hoặc hiệu suất cao.
-- Debugging complexity: Gỡ lỗi các vấn đề trở nên khó khăn hơn vì zone.js sửa đổi cách hoạt động của các hoạt động không đồng bộ.
-- Compatibility issues: Một số API trình duyệt hiện đại và thư viện của bên thứ ba không hoạt động tốt với zone.js.
-- Unnecessary change detection: Tính năng phát hiện thay đổi của Angular chạy ngay cả khi trạng thái của ứng dụng không thay đổi, dẫn đến lãng phí tài nguyên.
-
-## The Zoneless revolution in Angular
-
-Với việc phát hành Angular v19, framework đã giới thiệu một chế độ không vùng thử nghiệm để giải quyết những vấn đề này. Chế độ không vùng cho phép Angular chạy mà không cần zone.js, cho phép các nhà phát triển kiểm soát nhiều hơn thời điểm và cách phát hiện thay đổi xảy ra.
-
-### What does Zoneless mode do?
-
-In zoneless mode:
-
-- Angular không còn tự động theo dõi các hoạt động không đồng bộ.
-- Nhà phát triển phải kích hoạt phát hiện thay đổi theo cách thủ công khi dữ liệu thay đổi.
-- Ứng dụng trở nên gọn gàng hơn và nhanh hơn vì không có chi phí từ zone.js.
-
-## How to use Zoneless mode
-
-### Step 1: Disable Zone.js
-
-1. To disable zones, start by removing the zone.js library from your application in `angular.json`.
-
-```bash
-Update polyfills.ts: Remove or comment out the import for zone.js:
-   // polyfills.ts
-   // Remove or comment out the following line:
-   // import 'zone.js';
+```
+1_zoneless/
+├── src/
+│   ├── app/
+│   │   ├── app.component.ts              # Root component - demo 3 scenarios
+│   │   ├── app.routes.ts                 # Routes
+│   │   ├── config/
+│   │   │   └── app.config.ts             # Cấu hình zoneless provider
+│   │   ├── components/
+│   │   │   ├── click-event/
+│   │   │   │   └── click-event.component.ts    # Demo: click event binding
+│   │   │   ├── http-request/
+│   │   │   │   └── http-request.component.ts   # Demo: HTTP request
+│   │   │   └── set-interval/
+│   │   │       └── set-interval.component.ts   # Demo: setInterval async
+│   │   └── services/
+│   │       └── todo.service.ts            # Todo service với mock data
+│   ├── index.html
+│   ├── main.ts                            # Bootstrap
+│   └── styles.scss
+├── zonejs.md                              # Zone.js notes
+├── angular.json
+└── package.json
 ```
 
-2. Remove from Dependencies: Check your package.json and remove zone.js from the dependencies section:
-```bash
-{
-    "dependencies": {
-    "zone.js": "^0.12.0" // Remove this dependency
-    }
-```
-3. Uninstall the Library: Run the following command to uninstall zone.js completely:
+## Chi tiết từng file
 
-```bash   
-npm uninstall zone.js 
-```
+### `src/app/config/app.config.ts` — Cấu hình Zoneless
 
-### Step 2: Bootstrap without Zone.js
-
-Angular provides a dedicated function, provideExperimentalZonelessChangeDetection(), to enable zoneless mode in your application. 
-This function ensures that Angular initializes without zone.js and uses the experimental zoneless change detection.
-
-Here’s how to configure it in your main.ts file:
+Đây là file quan trọng nhất, nơi kích hoạt zoneless mode bằng cách sử dụng `provideExperimentalZonelessChangeDetection()` thay vì `provideZoneChangeDetection()`.
 
 ```ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
-import { AppComponent } from './app/app.component';
+import { ApplicationConfig, provideExperimentalZonelessChangeDetection, provideZoneChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { routes } from '../app.routes';
+import { provideHttpClient } from '@angular/common/http';
 
-bootstrapApplication(AppComponent, {
+export const appConfig: ApplicationConfig = {
   providers: [
-    provideExperimentalZonelessChangeDetection(), // Enable zoneless change detection
+    // provideZoneChangeDetection({ eventCoalescing: true }), // ← Tắt zone.js
+    provideExperimentalZonelessChangeDetection(),              // ← Bật zoneless
+    provideRouter(routes),
+    provideHttpClient()
   ],
-}).catch(err => console.error(err));
+};
 ```
 
-### Step 3: Manually trigger change detection
+**Giải thích:**
+- `provideExperimentalZonelessChangeDetection()` — kích hoạt change detection không cần zone.js
+- Khi dùng zoneless, Angular sẽ **không tự động** chạy change detection sau mỗi async operation
+- Developer cần chủ động gọi `ChangeDetectorRef.detectChanges()` hoặc sử dụng Signals
 
-Sau khi các vùng bị tắt, Angular sẽ không còn tự động chạy phát hiện thay đổi nữa. Bạn cần kích hoạt nó theo cách thủ công khi xảy ra thay đổi trạng thái.
+### `src/app/app.component.ts` — Root Component
 
-#### Sử dụng ChangeDetectorRef
-
-Dịch vụ ChangeDetectorRef cho phép bạn gọi phát hiện thay đổi ở cấp độ thành phần.
-Ngoài ra, phương thức markForCheck() rất hữu ích trong các tình huống mà bạn muốn Angular lên lịch phát hiện thay đổi cho các thành phần bằng chiến lược phát hiện thay đổi OnPush:
+Demo 3 scenarios khác nhau: click event, setInterval, và HTTP request — tất cả đều chạy trong zoneless mode.
 
 ```ts
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, ChangeDetectorRef, OnDestroy, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { Todo, TodoService } from './services/todo.service';
+import { ClickEventComponent } from './components/click-event/click-event.component';
+import { HttpRequestComponent } from './components/http-request/http-request.component';
+import { IntervalComponent } from './components/set-interval/set-interval.component';
 
 @Component({
   selector: 'app-root',
   template: `
-    <div>
-      <h1>Counter: {{ counter }}</h1>
-      <button (click)="incrementCounter()">Increment</button>
-    </div>
+    <h1>Angular Without Zone.js</h1>
+    <app-click-event />
+    <app-interval [tick]="tick"/>
+    <app-http-request (getTodoEvent)="getTodo()" [todos]="todos" />
+    <button (click)="manualTriggerChangeDetection()">Manual Trigger</button>
   `,
+  imports: [ClickEventComponent, HttpRequestComponent, IntervalComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true,
 })
-export class AppComponent {
-  counter = 0;
+export class AppComponent implements OnInit, OnDestroy {
+  todos: Array<Todo> = [];
+  tick = 0;
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  private _todoService = inject(TodoService);
+  private _subscription = new Subscription();
+  private _cdr = inject(ChangeDetectorRef);
 
-  incrementCounter() {
-    this.counter++;
-    this.cdr.markForCheck(); // Mark the component for checking during the next change detection cycle
+  ngOnInit(): void {
+    setInterval(() => {
+      this.tick += 1;
+      // this._cdr.detectChanges(); // ← Cần gọi thủ công trong zoneless
+    }, 1000);
   }
+
+  getTodo() {
+    const getTodos$ = this._todoService.getTodos().subscribe((todos) => {
+      this.todos = todos;
+      // this._cdr.detectChanges(); // ← Cần gọi thủ công trong zoneless
+    });
+    this._subscription.add(getTodos$);
+  }
+
+  manualTriggerChangeDetection() { }
 }
 ```
 
-#### Using ApplicationRef
+**Giải thích:**
+- Component sử dụng `ChangeDetectionStrategy.OnPush` kết hợp zoneless
+- Các method `detectChanges()` bị comment out — trong zoneless mode, Angular không tự động detect
+- Signal sẽ là giải pháp tốt hơn để tự động trigger change detection
+
+### `src/app/components/click-event/click-event.component.ts` — Click Event Demo
+
+So sánh 2 cách xử lý click: Angular Event Binding vs Vanilla JS addEventListener.
 
 ```ts
-import { Component, ApplicationRef } from '@angular/core';
-
 @Component({
-  selector: 'app-global-tick',
+  selector: 'app-click-event',
   template: `
-    <button (click)="updateState()">Update State</button>
-    <p>{{ message }}</p>
+    <div class="events">
+      Number: {{ number }}
+      <div>
+        <button id="myButton">Increase number (Vanilla JS)</button>
+        <button (click)="increaseNumber()">Increase number (Event Binding)</button>
+      </div>
+    </div>
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true,
 })
-export class GlobalTickComponent {
-  message = 'Initial State';
+export class ClickEventComponent implements AfterViewInit, OnDestroy {
+  number = 0;
+  private _button: HTMLElement | null = null;
+  private _cdr = inject(ChangeDetectorRef);
 
-  constructor(private appRef: ApplicationRef) {}
+  ngAfterViewInit(): void {
+    this.initEventListener();
+  }
 
-  updateState() {
-    this.message = 'Updated State';
-    this.appRef.tick(); // Trigger change detection globally
+  increaseNumber() {
+    this.number += 1;
+  }
+
+  private initEventListener() {
+    this._button = document.getElementById('myButton');
+    this._button?.addEventListener('click', () => {
+      this.increaseNumber();
+      // this._cdr.detectChanges(); // ← Vanilla JS cần gọi thủ công
+    });
   }
 }
 ```
 
-![alt text](zoneless.gif)
+**Giải thích:**
+- **Event Binding `(click)`** — Angular tự động detect changes (kể cả trong zoneless mode vì Angular zoneless hỗ trợ event binding)
+- **Vanilla JS addEventListener** — Không qua Angular, cần gọi `detectChanges()` thủ công
 
-### Step 4: Optimize with Signals
+### `src/app/components/set-interval/set-interval.component.ts` — Interval Demo
 
-- Tín hiệu Angular, được giới thiệu với mô hình phản ứng mới của Angular, là một người bạn đồng hành tuyệt vời với chế độ không vùng. 
-- Tín hiệu theo dõi các thay đổi trạng thái một cách hiệu quả và tự động cập nhật giao diện người dùng mà không cần gọi thủ công để phát hiện thay đổi.
+Component nhận `@Input` tick từ parent, minh họa việc zoneless không tự động detect khi giá trị thay đổi qua setInterval.
+
+```ts
+@Component({
+  selector: 'app-interval',
+  template: `
+    <div class="interval">
+      <div>Simple property set asynchronously</div>
+      <div>Tick: {{ tick }}</div>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true
+})
+export class IntervalComponent implements OnChanges {
+  @Input({ required: true }) tick = 0;
+
+  ngOnChanges(changes: SimpleChanges): void {
+    console.log(changes);
+  }
+}
+```
+
+### `src/app/components/http-request/http-request.component.ts` — HTTP Request Demo
+
+Component hiển thị danh sách todos với `@for` control flow, sử dụng event emission để trigger HTTP request từ parent.
+
+```ts
+@Component({
+  selector: 'app-http-request',
+  template: `
+    @for (todo of todos; track todo.id) {
+      <div>
+        <p>ID: {{ todo.id }}</p>
+        <p>User ID: {{ todo.userId }}</p>
+        <p>Title: {{ todo.title }}</p>
+        <p>Completed: {{ todo.completed }}</p>
+      </div>
+    } @empty {
+      <div>There are no todos.</div>
+    }
+    <button (click)="getTodos()">Get Todo</button>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true
+})
+export class HttpRequestComponent implements OnChanges {
+  @Input({ required: true }) todos: Array<Todo> = [];
+  @Output() getTodoEvent = new EventEmitter<null>();
+
+  getTodos() {
+    this.getTodoEvent.emit();
+  }
+}
+```
+
+### `src/app/services/todo.service.ts` — Todo Service
+
+Service返還 mock data với delay 1.5s, mô phỏng HTTP request.
+
+```ts
+@Injectable({ providedIn: 'root' })
+export class TodoService {
+  private _httpClient = inject(HttpClient);
+  private _url = 'https://jsonplaceholder.typicode.com/todos/';
+
+  getTodos() {
+    return of<Array<Todo>>([
+      { userId: 1, id: 1, title: "delectus aut autem", completed: false },
+      // ... mock data
+    ]).pipe(delay(1500));
+  }
+}
+```
+
+## Cách kích hoạt Zoneless
+
+### Bước 1: Loại bỏ zone.js
+
+```bash
+npm uninstall zone.js
+```
+
+### Bước 2: Bootstrap không có zone.js
+
+```ts
+import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideExperimentalZonelessChangeDetection(),
+  ],
+});
+```
+
+### Bước 3: Trigger change detection thủ công
+
+**Sử dụng ChangeDetectorRef:**
+```ts
+constructor(private cdr: ChangeDetectorRef) {}
+
+incrementCounter() {
+  this.counter++;
+  this.cdr.markForCheck(); // Đánh dấu component cần check
+}
+```
+
+**Sử dụng ApplicationRef:**
+```ts
+constructor(private appRef: ApplicationRef) {}
+
+updateState() {
+  this.message = 'Updated State';
+  this.appRef.tick(); // Trigger change detection toàn cục
+}
+```
+
+### Bước 4: Tối ưu với Signals (Recommended)
 
 ```ts
 import { Component, signal } from '@angular/core';
 
 @Component({
-  selector: 'app-signal-demo',
   template: `
     <h1>Signal Counter: {{ count() }}</h1>
     <button (click)="increment()">Increment</button>
@@ -211,32 +310,20 @@ export class SignalDemoComponent {
   count = signal(0);
 
   increment() {
-    this.count.set(this.count() + 1);
+    this.count.set(this.count() + 1); // Tự động trigger change detection
   }
 }
 ```
 
-Điều tốt nhất chúng ta có thể đạt được trong trường hợp này là sử dụng nó với OnPush cho tất cả các thành phần, do đó thu hẹp việc phát hiện thay đổi chỉ còn một đường dẫn duy nhất:
+## Tạo Zoneless App mặc định
 
-![alt text](one-path.gif)
+```bash
+ng new my-app --experimental-zoneless
+```
 
-Mọi thứ thay đổi mạnh mẽ với Angular 17 hoặc mới hơn. Trong các phiên bản này, đánh dấu người tiêu dùng phản ứng là bẩn không còn đánh dấu toàn bộ thành phần là bẩn. Thay vào đó, một hàm mới có tên là markAncestorsForTraversal được kích hoạt. Hàm này di chuyển từ thành phần qua tổ tiên của nó đến thành phần gốc (như markViewDirty đã làm), nhưng thay vì đánh dấu chúng là bẩn, nó để nguyên thành phần hiện tại (vì người tiêu dùng phản ứng đã được đánh dấu là bẩn). Tuy nhiên, tổ tiên của nó nhận được một cờ HasChildViewsToRefresh mới. Nó trông như thế này:
+## Coalescing trong Angular 18
 
-![alt text](mark-traversal.gif)
-
-Cơ chế di chuyển phát hiện thay đổi cũng đã được cập nhật. Bây giờ, khi quá trình bắt đầu với cây ở trạng thái này, nó sẽ đi qua các thành phần A và E mà không thực hiện phát hiện thay đổi trên chúng. Điều này là do chúng là OnPush nhưng không bẩn. Nhờ cờ HasChildViewsToRefresh mới, Angular tiếp tục truy cập các nút được đánh dấu bằng cờ này và tìm kiếm thành phần yêu cầu phát hiện thay đổi (trong ví dụ của chúng tôi, đó là thành phần có người tiêu dùng phản ứng được đánh dấu là bẩn). Khi nó đến thành phần F, nó thấy rằng người tiêu thụ phản ứng của nó bị bẩn, vì vậy thành phần này được phát hiện thay đổi - và nó là thành phần duy nhất!
-
-![alt text](one-node.gif)
-
-Khá tuyệt, phải không? Chúng ta đã đi từ thay đổi phát hiện toàn bộ đường dẫn của các thành phần sang chỉ một thành phần. Mặc dù đây là một ví dụ đơn giản về cây thành phần, nhưng hiệu suất tăng trong các ứng dụng thực tế đáng kể hơn nhiều.
-
-## Coalescing by default
-
-Bắt đầu từ phiên bản 18, chúng tôi đang sử dụng cùng một bộ lập lịch cho các ứng dụng không vùng và các ứng dụng sử dụng zone.js có bật kết hợp. Để giảm số chu kỳ phát hiện thay đổi trong ứng dụng zone.js mới, chúng tôi cũng đã bật hợp nhất vùng theo mặc định.
-
-Hành vi này chỉ được bật cho các ứng dụng mới vì nó có thể gây ra lỗi trong các ứng dụng phụ thuộc vào hành vi phát hiện thay đổi trước đó. Kết hợp làm giảm chu kỳ phát hiện thay đổi không cần thiết và cải thiện đáng kể hiệu suất cho một số ứng dụng.
-
-Để chọn tham gia hợp nhất sự kiện cho các dự án hiện có, hãy định cấu hình nhà cung cấp NgZone của bạn trong bootstrapApplicationbootstrapApplication:
+Bắt đầu từ Angular 18, zone event coalescing được bật **theo mặc định** cho ứng dụng mới:
 
 ```ts
 bootstrapApplication(App, {
@@ -246,27 +333,33 @@ bootstrapApplication(App, {
 });
 ```
 
-### Components support zoneless
+Coalescing gộp nhiều change detection cycles thành một, giảm不必要的 rendering.
 
-Chúng tôi đã kích hoạt hỗ trợ không vùng trong Angular CDK và Angular Material. Điều này cũng giúp chúng tôi khám phá và đánh bóng một số cạnh thô với mô hình không vùng.
+## So sánh: Zone.js vs Zoneless
 
-## Tại sao chế độ Zoneless lại mang tính cách mạng
+| Aspect | Zone.js (Default) | Zoneless |
+|--------|-------------------|----------|
+| Change Detection Trigger | Tự động bởi zone.js | Thủ công hoặc Signal-based |
+| Performance | Có overhead từ zone.js patching | Nhanh hơn, ít overhead |
+| Debugging | Khó hơn do zone.js patching | Dễ hơn |
+| Control | Framework tự quyết định | Developer kiểm soát |
+| Setup | Mặc định | Cần cấu hình thủ công |
+| Signals Integration | Hỗ trợ nhưng không bắt buộc | Optimized cho Signals |
 
-- Tăng hiệu suất: Các ứng dụng trở nên nhanh hơn và hiệu quả hơn bằng cách loại bỏ chi phí liên quan đến vùng.
-- Developer control: Chế độ không vùng cho phép bạn quyết định thời điểm cập nhật giao diện người dùng, dẫn đến các ứng dụng được tối ưu hóa tốt hơn.
-- Compatibility: Hoạt động liền mạch với các API hiện đại và thư viện của bên thứ ba.
-- Khả năng phản ứng nâng cao: Kết hợp với tín hiệu, chế độ không vùng giúp đơn giản hóa việc quản lý trạng thái và cải thiện khả năng phản hồi của ứng dụng.
+## Lợi ích
 
-## Create a Zone-Less App by Default?
+1. **Tăng hiệu suất** — Loại bỏ overhead của zone.js patching
+2. **Developer control** — Bạn quyết định thời điểm cập nhật UI
+3. **Compatibility** — Hoạt động tốt với modern browser APIs và third-party libraries
+4. **Reactive programming** — Kết hợp hoàn hảo với Signals
 
-```bash
-ng new my-app --experimental-zoneless
-```
+## Yêu cầu
 
-## Reference 
+- Angular 18+ (experimental)
+- Node.js 18+
 
-<https://dev.to/soumayaerradi/angular-change-detection-with-zoneless-413f>
+## Tài liệu tham khảo
 
-<https://angular.love/the-latest-in-angular-change-detection-zoneless-signals>
-
-<https://dev.to/danywalls/angular-19-and-zoneless-1of9>
+- [Angular Zoneless Change Detection](https://angular.dev/guide/components/change-detection)
+- [Zone.js và Angular](https://angular.dev/guide/overview)
+- [Angular Signals](https://angular.dev/guide/signals)

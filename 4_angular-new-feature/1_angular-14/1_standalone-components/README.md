@@ -1,40 +1,147 @@
-# Angular14
+# Standalone Components (Angular 14)
 
-## Standalone Component
+> Standalone components là một dạng component được khai báo độc lập, không phụ thuộc việc khai báo trong NgModules. Standalone components gồm components, directives hoặc pipes.
 
-> Standalone components là một dạng component được khai báo độc lập, không phụ thuộc việc khai báo trong NgModules như cách thông thường. `Standalone components` gồm components, directives hoặc pipes.
+## Trước Angular 14
 
-- `Standalone Component` sử dụng nhiều dependencies (components, directives, pipes, ... ), những đối tượng này không thuộc dạng standalone và phải import trực tiếp trong component hoặc cũng có thể import toàn bộ ngModule.
+Mỗi component phải được khai báo trong một NgModule:
 
-- Angular có thể chạy với `standalone component` như là component root của ứng dụng thay vì ngModules thông thường
+```ts
+// app.module.ts
+@NgModule({
+  declarations: [AppComponent, HeaderComponent],
+  imports: [BrowserModule, CommonModule],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+
+// app.component.ts
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent { }
+```
+
+## Sau Angular 14 - Standalone
+
+Component được khai báo độc lập với `standalone: true`:
 
 ```ts
 @Component({
-  selector: 'app-login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.css'],
+  selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule], // [NgModule]
-  providers: [
-    {
-      provide: INJECTOR_INITIALIZER,
-      multi: true,
-      useValue: () => inject(LoadingService).markLoaded()
-    }
-  ],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css'],
+  imports: [CommonModule, ReactiveFormsModule]
 })
+export class AppComponent { }
 ```
-- Các trường hợp sử dụng:
-    - Component không phụ thuộc, sử dụng độc lập vào NgModule.
-    - Directives, Pipes ít sử dụng hoặc hạn chế sử dụng.
-    - Dùng trong phát triển modules hoặc thư viện.
 
-- Lợi ích:
-    - Đơn giản hóa quá trình xây dựng ứng dụng: *Standalone components giúp đơn giản hóa việc xây dựng ứng dụng Angular bằng cách giảm bớt nhu cầu sử dụng NgModule1*.
-    - Tính linh hoạt cao: *Các ứng dụng hiện tại có thể tùy chọn và dần dần áp dụng phong cách standalone mới mà không gây ra bất kỳ thay đổi phá vỡ nào*.
-    - **Quản lý phụ thuộc trực tiếp**: *Standalone components cho phép chỉ định các phụ thuộc trực tiếp thay vì thông qua NgModule. Điều này giúp quản lý các phụ thuộc một cách rõ ràng và trực tiếp hơn.*
-    - Khả năng tương thích ngược với NgModule: *Standalone components có thể được nhập vào trong các ngữ cảnh dựa trên NgModule hiện có. Điều này cho phép các ứng dụng hiện tại (đang sử dụng NgModule) có thể dần dần áp dụng phong cách component standalone mới.*
-    - Khởi chạy ứng dụng mà không cần NgModule: *Một ứng dụng Angular có thể được khởi chạy mà không cần bất kỳ NgModule nào bằng cách sử dụng một standalone component làm component gốc của ứng dụng.*
+## Bootstrap với Standalone
 
+```ts
+// main.ts - Không cần NgModule
+import { bootstrapApplication } from '@angular/platform-browser';
 
-https://github.com/angular/angular/discussions/45554
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideRouter(routes),
+    provideHttpClient()
+  ]
+});
+```
+
+## Ví dụ thực tế
+
+```ts
+// product-card.component.ts
+@Component({
+  selector: 'app-product-card',
+  standalone: true,
+  imports: [CommonModule, CurrencyPipe],
+  template: `
+    <div class="product-card">
+      <h3>{{ product.name }}</h3>
+      <p>{{ product.price | currency:'VND' }}</p>
+      <button (click)="addToCart(product)">Thêm vào giỏ</button>
+    </div>
+  `
+})
+export class ProductCardComponent {
+  @Input() product!: Product;
+
+  constructor(private cartService: CartService) {}
+
+  addToCart(product: Product) {
+    this.cartService.add(product);
+  }
+}
+```
+
+## Standalone Directive & Pipe
+
+```ts
+// standalone directive
+@Directive({
+  selector: '[appHighlight]',
+  standalone: true
+})
+export class HighlightDirective {
+  @Input() appHighlight = 'yellow';
+
+  @HostListener('mouseenter') onMouseEnter() {
+    this.el.nativeElement.style.backgroundColor = this.appHighlight;
+  }
+
+  constructor(private el: ElementRef) {}
+}
+
+// standalone pipe
+@Pipe({
+  name: 'truncate',
+  standalone: true
+})
+export class TruncatePipe implements PipeTransform {
+  transform(value: string, limit: number = 50): string {
+    return value.length > limit ? value.substring(0, limit) + '...' : value;
+  }
+}
+```
+
+## Import từ Module sang Standalone
+
+```ts
+// Có thể import standalone components vào NgModule
+@NgModule({
+  imports: [CommonModule, ProductCardComponent],
+  declarations: [LegacyComponent]
+})
+export class SharedModule { }
+```
+
+## Flow Diagram
+
+```
+Traditional Angular:
+  Component → NgModule → Application
+
+Standalone Angular:
+  Component → Application (directly)
+```
+
+## Best Practices
+
+1. **Bắt đầu mới với standalone** – Không cần NgModule cho projects mới
+2. **Migrate dần** – Có thể import standalone components vào NgModule hiện có
+3. **Tránh circular imports** – Standalone components không nên import nhau vòng
+4. **Sử dụng `bootstrapApplication`** – Thay vì `platformBrowserDynamic().bootstrapModule()`
+
+## Ref
+
+- https://github.com/angular/angular/discussions/45554
+
+---
+
+**Summary**: Standalone Components loại bỏ sự phụ thuộc vào NgModule, cho phép bootstrap ứng dụng trực tiếp từ component. Đây là bước quan trọng đầu tiên hướng tới architecture đơn giản hơn trong Angular.
