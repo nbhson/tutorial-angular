@@ -129,16 +129,61 @@ Template demo minh họa input với visual feedback qua afterRender:
 
 ## Các phases trong `afterRender`
 
+### Render Cycle
+
+`afterRender` (với phases) là hook detect DOM đã render xong.
+
+```
+Component update (signal thay đổi)
+    │
+    ▼
+Angular Change Detection
+    │
+    ▼
+DOM update (render)
+    │
+    ▼
+afterRender phases chạy theo thứ tự:
+    │
+    ├── ① earlyRead        — Đọc DOM trước khi ghi (measurements)
+    ├── ② write            — Ghi vào DOM (style, attributes)
+    ├── ③ mixedReadWrite   — Đọc và ghi xen kẽ
+    └── ④ read             — Đọc DOM sau khi ghi xong ✅ DOM 100% stable
+```
+
 ```
 Thứ tự thực thi: earlyRead → write → mixedReadWrite → read
 ```
 
-| Phase | Mô tả | Lưu ý |
-|-------|-------|-------|
-| `earlyRead` | Đọc DOM trước khi ghi | Dùng để lấy measurements |
-| `write` | Ghi vào DOM | Không đọc DOM trong phase này |
-| `mixedReadWrite` | Đọc và ghi xen kẽ | Sử dụng thận trọng |
-| `read` | Đọc DOM sau khi ghi | Không ghi trong phase này |
+### Phase nào "đúng nhất" để biết DOM render 100%?
+
+| Phase | Khi nào dùng |
+|-------|---------------|
+| `earlyRead` | Đo kích thước element **trước khi** thay đổi |
+| `write` | Ghi vào DOM, nhưng DOM chưa hoàn tất |
+| `read` | ✅ DOM đã render xong, **an toàn để đọc** (measurements, positions) |
+
+### Ví dụ thực tế
+
+```ts
+constructor() {
+  afterRender({
+    earlyRead: () => {
+      // Đọc kích thước TRƯỚC KHI thay đổi
+      return this.element().nativeElement.offsetHeight;
+    },
+    write: (oldHeight) => {
+      // Ghi thay đổi vào DOM
+      this.element().nativeElement.style.height = oldHeight * 2 + 'px';
+    },
+    read: (newHeight) => {
+      // DOM đã render xong → an toàn đọc kết quả
+      console.log('New height:', newHeight);
+      // Có thể dùng IntersectionObserver, getBoundingClientRect()...
+    },
+  });
+}
+```
 
 ### Parameter Passing Between Phases
 

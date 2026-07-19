@@ -147,6 +147,63 @@ console.log(count.debug);
 - ✅ Better error messages
 - ✅ DevTools integration
 
+## `effect()` vs Debug — Hiểu rõ sự khác biệt
+
+> **Câu hỏi thường gặp:** "Nếu đã có debug rồi thì effect còn ý nghĩa nữa không?"
+
+**Câu trả lời: Có. `effect()` và debug là hai khái niệm hoàn toàn khác nhau.**
+
+### `effect()` — Công cụ runtime (thực thi side effects)
+
+`effect()` dùng để **thực thi code** mỗi khi signal thay đổi giá trị. Đây là reactive primitive phục vụ **business logic**:
+
+```typescript
+const count = signal(0);
+
+// effect THỰC HIỆN một hành động khi count thay đổi
+effect(() => {
+  localStorage.setItem('count', count());  // Side effect: ghi localStorage
+});
+
+effect(() => {
+  analytics.track('count_changed', count());  // Side effect: gửi analytics
+});
+
+effect(() => {
+  document.title = `Count: ${count()}`;  // Side effect: cập nhật DOM
+});
+```
+
+### Debug (Signal Diagnostics) — Công cụ inspection (xem trạng thái)
+
+Debug chỉ **đọc và hiển thị** thông tin về signal, **KHÔNG** thực thi bất kỳ logic nào:
+
+```typescript
+console.log(count.debug);  // Chỉ XEM thông tin: name, value, dependencies...
+// { name: 'count', value: 0, equality: Object.is, ... }
+```
+
+### So sánh
+
+| | `effect()` | Debug |
+|---|---|---|
+| **Mục đích** | Thực thi side effects khi signal thay đổi | Kiểm tra/inspector trạng thái signal |
+| **Chạy khi nào** | Tự động mỗi khi dependency thay đổi | Chỉ khi bạn gọi thủ công |
+| **Có thay đổi state không?** | Có thể (ghi file, gọi API, update DOM) | Không — chỉ đọc |
+| **Cần trong production?** | Có | Không (chỉ dev mode) |
+| **Ví dụ** | `effect(() => saveToDB(count()))` | `console.log(count.debug)` |
+
+### Kết luận
+
+**`effect()` vẫn hoàn toàn có ý nghĩa** vì:
+
+1. Debug chỉ cho bạn **xem** signal — `effect()` **hành động** khi signal thay đổi
+2. Debug là **dev tool** — `effect()` là **runtime logic**
+3. Không có `effect()` thì bạn không có cách nào chạy side effects reactive
+4. Hai công cụ **bổ trợ** cho nhau: dùng debug để hiểu signal, dùng effect để phản ứng với sự thay đổi của signal
+
+---
+
 ## Best practices
 
 1. **Dùng Angular DevTools** để inspect signals

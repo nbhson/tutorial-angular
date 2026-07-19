@@ -219,6 +219,130 @@ export class App {
 <p>{{ value }}</p>  <!-- ❌ Error: value không tồn tại -->
 ```
 
+## `@let` có vi phạm nguyên tắc "HTML chỉ view, logic nằm trong TS" không?
+
+### Nguyên tắc Separation of Concerns (SoC)
+
+Nguyên tắc gốc: **View chỉ render, logic nằm trong TypeScript**. Đây là nguyên tắc đúng, nhưng cần hiểu **đúng bản chất** của "logic" trong template.
+
+### Template ĐÃ LUÔN chứa logic — từ trước khi có `@let`
+
+```html
+<!-- @if / @else — logic điều kiện -->
+@if (isLoggedIn()) {
+  <p>Xin chào</p>
+} @else {
+  <p>Vui lòng đăng nhập</p>
+}
+
+<!-- @for — logic lặp -->
+@for (item of items(); track item.id) {
+  <li>{{ item.name }}</li>
+}
+
+<!-- Pipe — logic transform -->
+<p>{{ price | currency:'VND' }}</p>
+
+<!-- Ternary — logic điều kiện inline -->
+<p>{{ isLoggedIn ? 'Đã đăng nhập' : 'Chưa đăng nhập' }}</p>
+
+<!-- Method call — logic trong template -->
+<p>{{ formatName(user) }}</p>
+```
+
+`@let` **không tạo paradigm mới** — nó chỉ chính thức hóa pattern mà developers đã dùng từ lâu.
+
+### Phân biệt 2 loại "logic"
+
+| Loại | Ví dụ | Nên ở đâu? |
+|------|-------|------------|
+| **Presentation logic** | `fullName = first + ' ' + last`, conditional display, computed display values | ✅ Template (view) |
+| **Business logic** | API calls, state management, validation rules, data transformation phức tạp | ✅ TypeScript / Services |
+
+`@let` thuộc về **presentation logic** — nó chỉ tính toán giá trị để **hiển thị**, không thay đổi trạng thái hay thực hiện side-effect.
+
+```html
+<!-- ✅ Presentation logic: tính toán để hiển thị -->
+@let fullName = firstName() + ' ' + lastName();
+@let total = items().reduce((sum, item) => sum + item.price, 0);
+<p>{{ fullName }} — Tổng: {{ total }}</p>
+
+<!-- ❌ Business logic: KHÔNG nên ở template (và cũng không được phép) -->
+@let result = http.post('/api/save', data);  // ❌ Không thực hiện được
+```
+
+### `@let` thực ra CẢI THIỆN SoC
+
+**Cách cũ** (trước khi có `@let`) — Component bị "bẩn" bởi presentation logic:
+
+```typescript
+// Component class - bị buộc phải thêm property chỉ vì template cần
+export class AppComponent {
+  // Business logic
+  user = signal<User | null>(null);
+
+  // ❌ Presentation logic bị "lạc" vào class
+  get fullName(): string {
+    return this.user()?.firstName + ' ' + this.user()?.lastName;
+  }
+  get isLoggedIn(): boolean {
+    return this.user() !== null;
+  }
+  get displayItems(): string {
+    return this.items().length + ' sản phẩm';
+  }
+}
+```
+
+**Cách mới** với `@let` — Component class sạch hơn:
+
+```typescript
+// Component class - chỉ chứa business logic
+export class AppComponent {
+  user = signal<User | null>(null);
+  items = signal<Item[]>([]);
+}
+```
+
+```html
+<!-- Template - presentation logic nằm đúng chỗ -->
+@let fullName = user()?.firstName + ' ' + user()?.lastName;
+@let isLoggedIn = user() !== null;
+@let displayItems = items().length + ' sản phẩm';
+```
+
+### `@let` KHÔNG THỂ thay thế business logic
+
+`@let` bị ràng buộc bởi các giới hạn cố hữu của template:
+- **Không thể** gọi HTTP request
+- **Không thể** thay đổi state / mutation
+- **Không thể** thực hiện side-effect
+- **Chỉ có thể** tạo alias / computed value cho display
+
+→ Về bản chất, **Angular template system đã giới hạn** `@let` chỉ dùng được cho presentation logic.
+
+### Kết luận
+
+```
+@let KHÔNG vi phạm nguyên tắc SoC vì:
+
+1. Presentation logic THUỘC VỀ view
+   → @let chỉ xử lý presentation logic (computed display values)
+
+2. @let CẢI THIỆN SoC
+   → Giữ presentation logic trong template thay vì pollute component class
+   → Component class chỉ chứa business logic thực sự
+
+3. Angular template ĐÃ LUÔN chứa logic:
+   @if, @for, pipes, ternary operators, method calls...
+   @let chỉ là cách hợp lệ để xử lý presentation logic
+
+4. @let KHÔNG THỂ replace business logic
+   → Template system đã giới hạn: không side-effect, không state mutation
+```
+
+> **Quy tắc thực tế**: Nếu logic đó **chỉ phục vụ việc hiển thị** và **không có side-effect**, nó **thuộc về view** — dù bạn đặt trong `@let`, binding expression, hay template method.
+
 ## Chạy thử
 
 ```bash

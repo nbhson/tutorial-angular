@@ -358,6 +358,44 @@ Coalescing gộp nhiều change detection cycles thành một, giảm不必要�
 - Angular 18+ (experimental)
 - Node.js 18+
 
+## Zoneless + OnPush: Vẫn cần hay không?
+
+### Ngắn gọn: OnPush vẫn hữu ích nhưng vai trò thay đổi
+
+### Khi dùng Zone.js (cũ)
+
+- Zone.js tự động track tất cả async operations → trigger change detection toàn bộ app
+- **OnPush** là cách tối ưu để **giới hạn** scope change detection, chỉ chạy khi `@Input` thay đổi reference hoặc `signal` thay đổi
+
+### Khi dùng Zoneless (mới)
+
+- Không còn Zone.js → Angular **không tự động** chạy change detection nữa
+- Angular chỉ chạy change detection khi:
+  1. **Signal** thay đổi giá trị
+  2. Gọi `ChangeDetectorRef.markForCheck()` / `detectChanges()`
+  3. Event handler trong template (click, input...)
+  4. `async` pipe subscribed observable emit
+
+### So sánh nhu cầu OnPush
+
+| Trường hợp | Cần OnPush? | Lý do |
+|---|---|---|
+| Dùng **Signals** hoàn toàn | **Không cần** | Signals tự track dependency, Zoneless tự biết khi nào re-render |
+| Vẫn dùng **`@Input()`** truyền object | **Vẫn cần** | OnPush đảm bảo component chỉ re-render khi input reference thay đổi |
+| Vẫn dùng **Observables** + `async` pipe | **Vẫn cần** | OnPush + `markForCheck()` vẫn là pattern tốt |
+| Legacy code chưa convert sang signals | **Vẫn cần** | Giữ behavior tương tự trước đây |
+
+### Kết luận
+
+```
+Zoneless + Signals       = OnPush trở nên thừa
+Zoneless + traditional   = OnPush vẫn hữu ích
+```
+
+Angular mới khuyến khích: **dùng Signals thay vì OnPush** vì Signals có **fine-grained reactivity** (chỉ re-render phần DOM thay đổi, không phải cả component). OnPush chỉ kiểm soát ở **component level**.
+
+Vì vậy trong codebase mới với Zoneless, hãy ưu tiên **Signals** thay vì lo lắng về OnPush.
+
 ## Tài liệu tham khảo
 
 - [Angular Zoneless Change Detection](https://angular.dev/guide/components/change-detection)

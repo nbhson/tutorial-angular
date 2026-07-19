@@ -78,7 +78,80 @@ const data = httpResource(() => ({
 }));
 ```
 
-### 4. Combined Signals
+### 4. Transform Data (thay thế `map()` của RxJS)
+
+> **Câu hỏi thường gặp:** "Với RxJS tôi dùng `map()` để transform data trước khi display. `httpResource()` có làm được không?"
+
+**Có, nhưng theo cách khác.** `httpResource()` KHÔNG có `map()` hay `transform` trực tiếp. Thay vào đó, dùng `computed()` để transform:
+
+#### Cách cũ với RxJS:
+
+```typescript
+// RxJS: dùng pipe(map())
+user$ = this.http.get<User>(`/api/users/${id}`).pipe(
+  map(res => res.data),           // Transform response
+  map(user => user.name.toUpperCase())  // Transform tiếp
+);
+```
+
+#### Cách mới với httpResource():
+
+```typescript
+// httpResource() + computed() để transform
+user = httpResource<User>(() => ({
+  url: `/api/users/${this.userId()}`
+}));
+
+// Transform bằng computed() — tương đương map()
+userName = computed(() => {
+  const data = this.user.value();
+  return data ? data.name.toUpperCase() : 'Unknown';
+});
+
+// Transform nhiều bước — tương đương pipe(map(), map())
+userDisplay = computed(() => {
+  const data = this.user.value();
+  if (!data) return null;
+  return {
+    fullName: `${data.firstName} ${data.lastName}`,
+    avatar: data.avatarUrl ?? '/assets/default-avatar.png',
+    isActive: data.status === 'active'
+  };
+});
+```
+
+#### So sánh RxJS `map()` vs `computed()` transform
+
+| | RxJS `map()` | `computed()` transform |
+|---|---|---|
+| **Khi chạy** | Mỗi lần HTTP response về | Mỗi khi signal dependency thay đổi |
+| **Lazy?** | Không (eager trong pipe) | Có (lazy, chỉ compute khi cần) |
+| **Cache?** | Không | Có (auto-cache kết quả) |
+| **Compose được?** | Có (pipe nhiều map) | Có (computed lồng computed) |
+| **Nơi viết** | Trong `.pipe()` | Ngoài `httpResource()` |
+
+#### Kết luận
+
+- **`httpResource()` không có `map()`** vì nó không phải Observable —它 là Signal-based Resource
+- **Dùng `computed()`** để transform data — đây là cách "Angular way"
+- `computed()` thậm chí **tốt hơn** `map()` vì có **lazy evaluation** và **auto caching**
+- Nếu cần transform **trước khi request** (ví dụ: transform URL params), viết logic trong callback của `httpResource()`:
+
+```typescript
+user = httpResource<User>(() => {
+  const id = this.userId();
+  // Transform URL params ở đây
+  return {
+    url: `/api/users/${id}`,
+    method: 'GET',
+    headers: { 'X-Request-Id': crypto.randomUUID() }
+  };
+});
+```
+
+---
+
+### 5. Combined Signals
 
 ```typescript
 @Component({

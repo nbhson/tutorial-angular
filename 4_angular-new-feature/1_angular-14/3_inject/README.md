@@ -123,6 +123,172 @@ export class SmartComponent {
 }
 ```
 
+## Ví dụ 6: `inject()` trong Service
+
+> **Có!** `providers` + `inject()` không chỉ dùng cho Component mà còn dùng được cho Service.
+
+### Hiểu cách InjectionToken mapping
+
+```ts
+// ── Tạo token ──
+// new InjectionToken<T>('description')
+//                         ↑ chuỗi này CHỈ dùng để debug (hiện trong error messages)
+//                           KHÔNG liên quan gì đến giá trị được inject
+
+export const API_URL = new InjectionToken<string>('apiUrl');
+//                          'apiUrl' ← chỉ là description, KHÔNG phải giá trị
+
+// Thậm chí có thể bỏ trống:
+export const API_URL_2 = new InjectionToken<string>('');
+// Hoặc mô tả bất kỳ:
+export const API_URL_3 = new InjectionToken<string>('This is the backend API url');
+```
+
+**Mapping giữa token và giá trị được quyết định hoàn toàn bởi `providers`:**
+
+```ts
+// { provide: token_key, useValue: actual_value }
+//         ↑                        ↑
+//    InjectionToken object    giá trị thực sự
+//    (chính là API_URL)       ('https://api.example.com')
+
+providers: [
+  { provide: API_URL, useValue: 'https://api.example.com' }
+]
+```
+
+### Ví dụ đầy đủ
+
+```ts
+import { Injectable, inject, InjectionToken } from '@angular/core';
+
+// ── Tạo tokens ──
+// Parameter string bên trong KHÔNG phải giá trị, chỉ là description
+export const API_URL = new InjectionToken<string>('apiUrl');
+export const TIMEOUT = new InjectionToken<number>('timeout');
+
+// ── Service dùng inject() ──
+@Injectable()
+export class ApiService {
+  private apiUrl = inject(API_URL);   // ← lookup: providers[API_URL] → 'https://api.example.com'
+  private timeout = inject(TIMEOUT);  // ← lookup: providers[TIMEOUT] → 5000
+
+  getData() {
+    return fetch(this.apiUrl + '/data', {
+      signal: AbortSignal.timeout(this.timeout)
+    });
+  }
+}
+```
+
+**Cung cấp giá trị (providers) – đây mới là nơi quyết định value:**
+
+```ts
+@Component({
+  selector: 'app-dashboard',
+  providers: [
+    { provide: API_URL, useValue: 'https://api.example.com' },
+    //  ↑ key (token object)          ↑ value (string thật)
+    { provide: TIMEOUT, useValue: 5000 },
+    //  ↑ key (token object)     ↑ value (number thật)
+    ApiService
+  ]
+})
+export class DashboardComponent {
+  private api = inject(ApiService);
+}
+```
+
+> **Tóm lại mapping:**
+> 
+> ```
+> new InjectionToken<string>('apiUrl')   ← description (debug only)
+>                                            ↓ KHÔNG mapping
+> providers: [
+>   { provide: API_URL, useValue: 'https://api.example.com' }
+>     ↑ key = API_URL object               ↑ value
+> ]
+>
+> inject(API_URL)  ← lookup theo API_URL object → trả về 'https://api.example.com'
+> ```
+
+### Cách cung cấp values cho Service
+
+**Cách 1: providers ở Component cha**
+
+```ts
+@Component({
+  selector: 'app-dashboard',
+  providers: [
+    // Giá trị thực cho token
+    { provide: API_URL, useValue: 'https://api.example.com' },
+    { provide: TIMEOUT, useValue: 5000 },
+    ApiService  // Register service tại component level
+  ]
+})
+export class DashboardComponent {
+  // DashboardComponent và các child component
+  // có thể inject ApiService với giá trị đã config
+  private api = inject(ApiService);
+}
+```
+
+**Cách 2: providers ở Module**
+
+```ts
+@NgModule({
+  providers: [
+    { provide: API_URL, useValue: 'https://api.example.com' },
+    { provide: TIMEOUT, useValue: 5000 },
+    ApiService
+  ]
+})
+export class AppModule { }
+```
+
+**Cách 3: providers ở route config (Angular 15+)**
+
+```ts
+// Standalone app - cấu hình route
+export const routes: Routes = [
+  {
+    path: 'dashboard',
+    providers: [
+      { provide: API_URL, useValue: 'https://api.example.com' },
+      { provide: TIMEOUT, useValue: 5000 },
+      ApiService
+    ],
+    loadComponent: () =>
+      import('./dashboard/dashboard.component')
+        .then(m => m.DashboardComponent)
+  }
+];
+```
+
+**Cách 4: multi providers - nhiều giá trị cho cùng token**
+
+```ts
+const LOGGER = new InjectionToken<Function[]>('logger');
+
+@Injectable()
+export class LoggingService {
+  private loggers = inject(LOGGER);  // Logger[]
+
+  log(msg: string) {
+    this.loggers.forEach(fn => fn(msg));
+  }
+}
+
+// Cung cấp nhiều logger
+@Component({
+  providers: [
+    { provide: LOGGER, useValue: console.log, multi: true },
+    { provide: LOGGER, useValue: (msg: string) => alert(msg), multi: true },
+  ]
+})
+export class AppComponent {}
+```
+
 ## So sánh chi tiết
 
 | Feature | Constructor Injection | `inject()` |

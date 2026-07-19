@@ -46,7 +46,8 @@ export class SignalMethodsComponent implements OnInit {
   }
 
   addQuantity() {
-    this.qtyAvailable.mutate(v => v.push(v[v.length - 1] + 1));
+    // ✅ Dùng update() thay vì mutate() (deprecated)
+    this.qtyAvailable.update(prev => [...prev, prev[prev.length - 1] + 1]);
   }
 }
 

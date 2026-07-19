@@ -301,6 +301,134 @@ processPayment(paymentData: PaymentData): Observable<PaymentResult> {
 4. **Implement error handling** vì user có thể không thấy error ngay
 5. **Monitor request status** bằng service hoặc state management
 
+## Khi nào Observable / Fetch Request bị Destroy?
+
+### Phân biệt Observable Subscription và Fetch Request
+
+```
+Component A subscribes → http.post('/api/upload', data)
+        │
+        │  withKeepalive() active
+        ▼
+Component A navigate away
+        │
+        ├──→ [Observable Subscription] → CLEANED UP (ngOnDestroy / takeUntilDestroyed) ✅
+        │
+        └──→ [Fetch Request (HTTP)] → CONTINUES (thanks to keepalive) 🔄
+```
+
+`withKeepalive()` **không giữ Observable subscription sống** — nó chỉ giữ cho **fetch request** không bị abort.
+
+### Chi tiết từng layer
+
+#### Layer 1: Observable Subscription (managed by Subscriber)
+
+```typescript
+// Component subscribes
+this.http.post('/api/upload', data).subscribe(...)
+// ↑ Subscription được tạo
+
+// Component navigate → ngOnDestroy
+// → takeUntilDestroyed() / manual unsubscribe
+// → Subscription CLEANED UP ✅
+```
+
+**Luôn cleanup** — giống như bất kỳ Observable nào khác.
+
+#### Layer 2: Fetch Request (managed by Angular HTTP infrastructure)
+
+```typescript
+// fetch('/api/upload', ...) chạy ngầm
+
+// Component navigate →
+// KHÔNG có keepalive → AbortController.abort() → Request bị cancel ❌
+// CÓ keepalive     → Request TIẾP TỤC chạy ✅
+```
+
+### Flow timeline
+
+```
+Timeline:
+─────────────────────────────────────────────
+
+Component A:     |============| onDestroy
+Subscription:    |============| CLEANED UP ← subscription kết thúc ở đây
+Fetch Request:   |==========================================| Response arrives
+                                                  ↑
+                                        Server processing completes
+
+                                        Response arrives nhưng
+                                        không có subscriber nào
+                                        → Result discarded by Angular
+```
+
+Fetch request kết thúc khi:
+1. **Server response về** → fetch hoàn thành → request destroyed
+2. **Network error** → fetch fail → request destroyed
+3. **Client disconnect** (đóng tab/browser) → fetch aborted
+4. **Timeout** (nếu có cấu hình) → fetch aborted
+
+### Vấn đề thực tế: Ai nhận response?
+
+```typescript
+// Component A
+saveAndSync() {
+  this.syncService.syncData(data).subscribe({
+    next: (res) => console.log('Sync done!', res),  // ← callback này SẼ KHÔNG được gọi
+    error: (err) => console.error('Failed!')         // ← nếu navigate trước khi response về
+  });
+  // Navigate away → subscription cleaned up
+  // Fetch request tiếp tục chạy (keepalive)
+  // Server xử lý xong → response về → KHÔNG AI nhận
+}
+```
+
+### Giải pháp: Dùng root-level service
+
+```typescript
+// ✅ Service providedIn: 'root' → sống suốt app lifetime
+@Injectable({ providedIn: 'root' })
+export class SyncService {
+  private http = inject(HttpClient);
+
+  // Dùng BehaviorSubject để cache result
+  private syncResult$ = new BehaviorSubject<SyncResult | null>(null);
+
+  syncData(data: any[]): Observable<any> {
+    return this.http.post('/api/sync', { data }).pipe(
+      tap(result => this.syncResult$.next(result))  // ← Cache result
+    );
+  }
+
+  getSyncResult(): Observable<SyncResult | null> {
+    return this.syncResult$.asObservable();
+  }
+}
+
+// Component ở TRANG KHÁC vẫn nhận được result:
+@Component({ ... })
+export class OtherPageComponent {
+  private syncService = inject(SyncService);
+
+  result$ = this.syncService.getSyncResult(); // ← Nhận cached result
+}
+```
+
+## Tóm tắt
+
+| Concept | Lifecycle | Destroy khi nào? |
+|---------|-----------|-------------------|
+| **Observable Subscription** | Managed by subscriber | Component destroy / unsubscribe |
+| **Fetch Request (with keepalive)** | Managed by Angular HTTP | Response về / error / timeout |
+| **Root-level Service** | App lifetime | App close / manual cleanup |
+| **Custom Injector** | Manual control | `injector.destroy()` |
+
+**Kết luận:**
+
+- `withKeepalive()` **không giữ Observable sống** — nó chỉ giữ **fetch request** chạy ngầm
+- Observable subscription vẫn được cleanup bình thường qua `takeUntilDestroyed()`, `ngOnDestroy()`, hay `unsubscribe()`
+- Nếu cần nhận response sau khi navigate, phải dùng **root-level service** hoặc **state management** để cache kết quả
+
 ## Chạy thử
 
 ```bash
