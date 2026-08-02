@@ -1,0 +1,51 @@
+<section class="demo">
+  <h2>🌡️ 1. Service tools — AI đọc & điều khiển signal thật</h2>
+  <p>
+    Hai WebMCP tool <code>get_temperature</code> và <code>set_temperature</code>
+    được đăng ký trong <code>ThermostatService</code>. Nhiệt độ bên dưới là một
+    <strong>signal thật</strong> của app — AI agent trong trình duyệt có thể đọc và thay đổi nó,
+    màn hình tự cập nhật.
+  </p>
+
+  <div class="thermostat">
+    <div class="display">
+      <span class="value">{{ temperature() }}°C</span>
+      <span class="label">AI đã điều chỉnh: {{ adjustments() }} lần</span>
+    </div>
+    <div class="controls">
+      <button (click)="decreaseTemp()">−</button>
+      <button (click)="increaseTemp()">+</button>
+    </div>
+  </div>
+
+  <h2>📝 2. Implicit tool từ Signal Forms — AI tự điền form</h2>
+  <p>
+    Form bên dưới tự sinh WebMCP tool <code>registerUser</code> từ option
+    <code>experimentalWebMcpTool</code>. AI agent có thể tự điền, tự sửa lỗi validation,
+    rồi submit — người dùng không phải gõ gì.
+  </p>
+
+  <form class="registration">
+    <label>
+      First name
+      <input [formField]="userForm.firstName" type="text" placeholder="Alice" />
+    </label>
+
+    <label>
+      Last name
+      <input [formField]="userForm.lastName" type="text" placeholder="Smith" />
+    </label>
+
+    <label>
+      Age
+      <input [formField]="userForm.age" type="number" />
+    </label>
+
+    <p class="note">
+      Field <code>hobbies</code> (string[]) nằm trong model nên vẫn được sinh vào JSON schema
+      của tool <code>registerUser</code>, dù không render input riêng ở đây.
+    </p>
+
+    <button type="button" (click)="submitForm()">Submit (mô phỏng hành động AI)</button>
+  </form>
+</section>

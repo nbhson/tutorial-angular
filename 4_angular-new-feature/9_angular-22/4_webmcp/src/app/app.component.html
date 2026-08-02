@@ -1,0 +1,20 @@
+<header>
+  <h1>🦊 WebMCP — AI trong trình duyệt</h1>
+  <nav>
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">🏠 Home</a>
+    <a routerLink="/dashboard" routerLinkActive="active">📊 Dashboard</a>
+  </nav>
+</header>
+
+<main>
+  <p class="hint">
+    Mở DevTools console để xem các tool được đăng ký.
+    Trong trình duyệt có hỗ trợ WebMCP, một AI agent có thể gọi trực tiếp các tool này.
+  </p>
+  <router-outlet />
+</main>
+
+<footer>
+  WebMCP tools của app này được đăng ký ở 3 nơi: <code>main.ts</code> (app level),
+  <code>ThermostatService</code> (service), <code>dashboard</code> route.
+</footer>
