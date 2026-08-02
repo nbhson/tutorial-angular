@@ -1,19 +1,19 @@
-# Security Hardening
+# Siết Chặt Bảo Mật (Security Hardening)
 
-## Overview
-Angular 22 makes sanitization stricter by default. If you use ` DomSanitizer.bypassSecurityTrust*`, you now get a warning in dev and stricter handling in prod.
+## Tổng quan
+Angular 22 làm sanitization chặt chẽ hơn theo mặc định. Nếu bạn dùng ` DomSanitizer.bypassSecurityTrust*`, giờ bạn sẽ nhận được cảnh báo trong dev và xử lý chặt chẽ hơn trong prod.
 
-## Key Features
+## Tính năng chính
 
-- **Stricter sanitization**: ` DomSanitizer.bypassSecurityTrust*` triggers warnings
-- **Dev warnings**: Clear console warnings when bypassing security
-- **Prod enforcement**: Stricter handling in production builds
-- **Safe value promotion**: Safe values are promoted to DomSanitizer.bypassSecurityTrustUrl
-- **Best practices enforced**: Encourages secure coding patterns
+- **Sanitization chặt chẽ hơn**: ` DomSanitizer.bypassSecurityTrust*` kích hoạt cảnh báo
+- **Cảnh báo dev**: Cảnh báo console rõ ràng khi bypass bảo mật
+- **Thực thi trong prod**: Xử lý chặt chẽ hơn trong production builds
+- **Thăng hạng safe value**: Safe values được thăng hạng thành DomSanitizer.bypassSecurityTrustUrl
+- **Thực thi best practices**: Khuyến khích các mẫu code an toàn
 
-## Code Examples
+## Ví dụ Code
 
-### Bypassing Security (Now with Warnings)
+### Bypass Bảo Mật (Giờ Có Cảnh Báo)
 
 ```typescript
 import { Component } from '@angular/core';
@@ -23,7 +23,7 @@ import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
   selector: 'app-unsafe-demo',
   template: `
     <div [innerHTML]="trustedHtml"></div>
-    <a [href]="trustedUrl">Link</a>
+    <a [href]="trustedUrl">Liên kết</a>
   `
 })
 export class UnsafeDemoComponent {
@@ -31,12 +31,12 @@ export class UnsafeDemoComponent {
   trustedUrl: SafeUrl;
 
   constructor(private sanitizer: DomSanitizer) {
-    // ⚠️ Angular 22: This now produces a dev warning!
+    // ⚠️ Angular 22: Điều này giờ tạo ra cảnh báo dev!
     this.trustedHtml = sanitizer.bypassSecurityTrustHtml(
       '<script>alert("xss")</script>'
     );
     
-    // ⚠️ Angular 22: This also warns in dev
+    // ⚠️ Angular 22: Cái này cũng cảnh báo trong dev
     this.trustedUrl = sanitizer.bypassSecurityTrustUrl(
       'javascript:alert("xss")'
     );
@@ -44,7 +44,7 @@ export class UnsafeDemoComponent {
 }
 ```
 
-### Secure Alternative Patterns
+### Các Pattern An Toàn Thay Thế
 
 ```typescript
 import { Component, computed, signal } from '@angular/core';
@@ -52,7 +52,7 @@ import { Component, computed, signal } from '@angular/core';
 @Component({
   selector: 'app-safe-demo',
   template: `
-    <!-- Safe: Use component interpolation instead of innerHTML -->
+    <!-- An toàn: Dùng component interpolation thay vì innerHTML -->
     @for (item of safeItems(); track item.id) {
       <div class="item">
         <h3>{{ item.title }}</h3>
@@ -60,12 +60,12 @@ import { Component, computed, signal } from '@angular/core';
       </div>
     }
     
-    <!-- Safe: Use routerLink instead of href -->
-    <a [routerLink]="['/page', pageId()]">Navigate</a>
+    <!-- An toàn: Dùng routerLink thay vì href -->
+    <a [routerLink]="['/page', pageId()]">Điều hướng</a>
     
-    <!-- Safe: Whitelist URLs explicitly -->
+    <!-- An toàn: Whitelist các URL một cách tường minh -->
     @if (isSafeUrl(inputUrl())) {
-      <a [href]="inputUrl()">External Link</a>
+      <a [href]="inputUrl()">Liên kết ngoài</a>
     }
   `
 })
@@ -74,8 +74,8 @@ export class SafeDemoComponent {
   pageId = signal(1);
   
   safeItems = signal([
-    { id: 1, title: 'Item 1', description: 'Description 1' },
-    { id: 2, title: 'Item 2', description: 'Description 2' }
+    { id: 1, title: 'Mục 1', description: 'Mô tả 1' },
+    { id: 2, title: 'Mục 2', description: 'Mô tả 2' }
   ]);
   
   isSafeUrl(url: string): boolean {
@@ -90,7 +90,7 @@ export class SafeDemoComponent {
 }
 ```
 
-### Safe HTML Rendering
+### Render HTML An Toàn
 
 ```typescript
 import { Component, signal } from '@angular/core';
@@ -98,7 +98,7 @@ import { Component, signal } from '@angular/core';
 @Component({
   selector: 'app-rich-content',
   template: `
-    <!-- If you MUST render HTML, sanitize it properly -->
+    <!-- Nếu BẮT BUỘC phải render HTML, hãy sanitize nó đúng cách -->
     @if (sanitizedContent()) {
       <div [innerHTML]="sanitizedContent()"></div>
     }
@@ -107,7 +107,7 @@ import { Component, signal } from '@angular/core';
 export class RichContentComponent {
   private sanitizer = inject(DomSanitizer);
   
-  // Process content through a whitelist
+  // Xử lý nội dung qua một whitelist
   sanitizedContent = computed(() => {
     const raw = this.rawHtml();
     return this.sanitizer.bypassSecurityTrustHtml(
@@ -118,7 +118,7 @@ export class RichContentComponent {
   rawHtml = signal('<p>Hello <b>World</b></p>');
   
   private stripDangerousTags(html: string): string {
-    // Remove script tags and event handlers
+    // Loại bỏ script tags và event handlers
     return html
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/on\w+="[^"]*"/gi, '')
@@ -127,37 +127,37 @@ export class RichContentComponent {
 }
 ```
 
-### Security Best Practices Checklist
+### Checklist Best Practices Bảo Mật
 
 ```typescript
-// ✅ DO: Use Angular's built-in sanitization
+// ✅ NÊN LÀM: Dùng sanitization tích hợp sẵn của Angular
 @Component({
   template: `
-    <!-- Auto-sanitized by Angular -->
+    <!-- Được Angular tự động sanitize -->
     <div [innerHTML]="userContent"></div>
     <img [src]="imageUrl" />
     <a [href]="linkUrl"></a>
   `
 })
 
-// ❌ DON'T: Bypass security without good reason
+// ❌ KHÔNG NÊN: Bypass bảo mật mà không có lý do chính đáng
 @Component({
   template: `
-    <!-- Only use bypassSecurity when absolutely necessary -->
+    <!-- Chỉ dùng bypassSecurity khi thật sự cần thiết -->
     <div [innerHTML]="bypassedHtml"></div>
   `
 })
 ```
 
-## Security Matrix
+## Ma Trận Bảo Mật
 
-| Property | Auto-Sanitized | Bypass Warning |
+| Thuộc tính | Tự động sanitize | Cảnh báo bypass |
 |----------|---------------|----------------|
-| `[innerHTML]` | ✅ XSS cleaned | ⚠️ Yes |
-| `[src]` | ✅ URL validated | ⚠️ Yes |
-| `[href]` | ✅ URL validated | ⚠️ Yes |
-| `[style]` | ✅ CSS cleaned | ⚠️ Yes |
-| `[attr]` | ✅ Attribute cleaned | ⚠️ Yes |
+| `[innerHTML]` | ✅ Làm sạch XSS | ⚠️ Có |
+| `[src]` | ✅ Xác thực URL | ⚠️ Có |
+| `[href]` | ✅ Xác thực URL | ⚠️ Có |
+| `[style]` | ✅ Làm sạch CSS | ⚠️ Có |
+| `[attr]` | ✅ Làm sạch attribute | ⚠️ Có |
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

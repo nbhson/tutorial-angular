@@ -1,18 +1,18 @@
-# WebMCP — MCP Runs in the Browser
+# WebMCP — MCP Chạy Trong Trình Duyệt
 
-## Overview
-Angular 22 ships a WebMCP client. You can expose signals, models, or actions to an AI agent right inside the browser — no server glue required.
+## Tổng quan
+Angular 22 cung cấp client WebMCP. Bạn có thể expose signals, models hoặc actions cho AI agent ngay trong trình duyệt — không cần glue phía server.
 
-## Key Features
+## Tính năng chính
 
-- **Browser-based MCP**: MCP runs directly in the browser, no server needed
-- **Signal integration**: Expose Angular signals to AI agents
-- **Model Control Protocol**: Standard protocol for AI tool integration
-- **Angular-first**: Built-in support in Angular 22
+- **MCP dựa trên trình duyệt**: MCP chạy trực tiếp trong trình duyệt, không cần server
+- **Tích hợp signals**: Expose Angular signals cho AI agents
+- **Model Control Protocol**: Giao thức chuẩn để tích hợp công cụ AI
+- **Angular-first**: Hỗ trợ tích hợp sẵn trong Angular 22
 
-## Code Examples
+## Ví dụ Code
 
-### Basic WebMCP Setup
+### Thiết Lập WebMCP Cơ Bản
 
 ```typescript
 import { Component, signal } from '@angular/core';
@@ -22,8 +22,8 @@ import { mcpTool } from '@angular/core/webmcp';
   selector: 'app-mcp-demo',
   template: `
     <h2>MCP Signal Bridge</h2>
-    <p>Temperature: {{ temperature() }}°C</p>
-    <button (click)="increaseTemp()">Increase</button>
+    <p>Nhiệt độ: {{ temperature() }}°C</p>
+    <button (click)="increaseTemp()">Tăng</button>
   `
 })
 export class McpDemoComponent {
@@ -31,7 +31,7 @@ export class McpDemoComponent {
 
   @mcpTool({
     name: 'get_temperature',
-    description: 'Get the current temperature reading'
+    description: 'Lấy giá trị nhiệt độ hiện tại'
   })
   getTemperature() {
     return { temperature: this.temperature() };
@@ -39,11 +39,11 @@ export class McpDemoComponent {
 
   @mcpTool({
     name: 'set_temperature',
-    description: 'Set the temperature target',
+    description: 'Đặt mức nhiệt độ mục tiêu',
     inputSchema: {
       type: 'object',
       properties: {
-        value: { type: 'number', description: 'Target temperature in Celsius' }
+        value: { type: 'number', description: 'Nhiệt độ mục tiêu tính bằng Celsius' }
       },
       required: ['value']
     }
@@ -59,7 +59,7 @@ export class McpDemoComponent {
 }
 ```
 
-### Exposing a Todo List to AI
+### Expose Todo List cho AI
 
 ```typescript
 import { Component, signal, computed } from '@angular/core';
@@ -67,13 +67,13 @@ import { Component, signal, computed } from '@angular/core';
 @Component({
   selector: 'app-todos',
   template: `
-    <h2>Todo List (MCP-enabled)</h2>
+    <h2>Todo List (hỗ trợ MCP)</h2>
     <ul>
       @for (todo of todos(); track todo.id) {
         <li>{{ todo.text }} - {{ todo.done ? '✅' : '⬜' }}</li>
       }
     </ul>
-    <p>Total: {{ todos().length }}, Done: {{ completedCount() }}</p>
+    <p>Tổng: {{ todos().length }}, Đã xong: {{ completedCount() }}</p>
   `
 })
 export class TodosComponent {
@@ -103,7 +103,7 @@ export class TodosComponent {
 }
 ```
 
-### Configuring WebMCP Provider
+### Cấu Hình WebMCP Provider
 
 ```typescript
 import { ApplicationConfig, provideWebMCP } from '@angular/core/webmcp';
@@ -118,21 +118,21 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
-## How WebMCP Works
+## WebMCP Hoạt Động Như Thế Nào
 
-| Concept | Description |
+| Khái niệm | Mô tả |
 |---------|-------------|
-| **Signal bridge** | AI agents can read/write Angular signals |
-| **Tool exposure** | Components expose methods as MCP tools |
-| **Schema-driven** | Input schemas describe tool parameters |
-| **Browser-native** | No server middleware needed |
+| **Signal bridge** | AI agents có thể đọc/ghi Angular signals |
+| **Tool exposure** | Components expose các phương thức dưới dạng MCP tools |
+| **Schema-driven** | Input schemas mô tả tham số của tool |
+| **Browser-native** | Không cần middleware phía server |
 
 ## Use Cases
 
-1. **AI-powered debugging** — Let AI agents inspect component state
-2. **Automated testing** — AI tools can drive UI interactions
-3. **Data analysis** — Expose computed signals for AI insight generation
-4. **Workflow automation** — Let AI trigger component actions
+1. **Debugging hỗ trợ AI** — Cho phép AI agents kiểm tra state của component
+2. **Testing tự động** — Công cụ AI có thể điều khiển các tương tác UI
+3. **Phân tích dữ liệu** — Expose computed signals để AI sinh ra insights
+4. **Tự động hóa workflow** — Cho phép AI kích hoạt các actions của component
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

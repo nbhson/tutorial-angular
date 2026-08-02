@@ -1,28 +1,28 @@
-# Comments in Templates
+# Comment Trong Template
 
-## Overview
-Angular 22 adds support for comments in templates. This sounds small, but it fills a gap that has been there since the beginning.
+## Tổng quan
+Angular 22 bổ sung hỗ trợ comment trong templates. Nghe có vẻ nhỏ nhặt, nhưng nó lấp đầy một khoảng trống đã tồn tại từ đầu.
 
-## Key Features
+## Tính năng chính
 
-- **HTML-style comments**: Use `<!-- comment -->` in templates
-- **Works with control flow**: Comments inside `@if`, `@for`, `@switch` blocks
-- **Conditional display**: Show/hide comments based on conditions
-- **No runtime cost**: Comments are stripped from production builds
-- **IDE support**: Syntax highlighting and formatting
+- **Comment kiểu HTML**: Dùng `<!-- comment -->` trong templates
+- **Hoạt động với control flow**: Comment bên trong các block `@if`, `@for`, `@switch`
+- **Hiển thị có điều kiện**: Hiện/ẩn comment dựa trên điều kiện
+- **Không tốn chi phí runtime**: Comment bị loại bỏ khỏi production builds
+- **Hỗ trợ IDE**: Tô màu cú pháp (syntax highlighting) và định dạng
 
-## Code Examples
+## Ví dụ Code
 
-### Basic Template Comments
+### Comment Template Cơ Bản
 
 ```typescript
 @Component({
   selector: 'app-demo',
   template: `
-    <h1>My Component</h1>
-    <!-- This is a comment - visible in dev, stripped in prod -->
-    <p>Some content</p>
-    <!-- TODO: Add form validation later -->
+    <h1>Component của tôi</h1>
+    <!-- Đây là comment - hiện trong dev, loại bỏ trong prod -->
+    <p>Một số nội dung</p>
+    <!-- TODO: Thêm form validation sau -->
     <form>
       <input type="text" />
     </form>
@@ -31,7 +31,7 @@ Angular 22 adds support for comments in templates. This sounds small, but it fil
 export class DemoComponent {}
 ```
 
-### Comments in Control Flow
+### Comment Trong Control Flow
 
 ```typescript
 @Component({
@@ -39,19 +39,19 @@ export class DemoComponent {}
   template: `
     <ul>
       @for (user of users(); track user.id) {
-        <!-- User item with avatar -->
+        <!-- Mục user với avatar -->
         <li>
           <img [src]="user.avatar" [alt]="user.name" />
           <span>{{ user.name }}</span>
         </li>
         
-        <!-- Separator between items -->
+        <!-- Dấu phân cách giữa các mục -->
         @if (!$last) {
           <li class="separator"></li>
         }
       } @empty {
-        <!-- No users found state -->
-        <li class="empty">No users found</li>
+        <!-- Trạng thái không có user -->
+        <li class="empty">Không tìm thấy user</li>
       }
     </ul>
   `
@@ -61,14 +61,14 @@ export class UserListComponent {
 }
 ```
 
-### Conditional Comments with @if
+### Comment Có Điều Kiện với @if
 
 ```typescript
 @Component({
   selector: 'app-dashboard',
   template: `
     <div class="dashboard">
-      <!-- DEBUG: Uncomment to show debug info -->
+      <!-- DEBUG: Bỏ comment để hiện thông tin debug -->
       <!-- @if (debugMode()) {
         <pre>{{ state() | json }}</pre>
       } -->
@@ -76,10 +76,10 @@ export class UserListComponent {
       <h1>Dashboard</h1>
       
       <!-- 
-        TODO: Implement the following features:
-        - Real-time notifications
-        - Data export
-        - User preferences
+        TODO: Triển khai các tính năng sau:
+        - Thông báo real-time
+        - Xuất dữ liệu
+        - Tùy chọn người dùng
       -->
       
       <app-stats />
@@ -93,7 +93,7 @@ export class DashboardComponent {
 }
 ```
 
-### Nested Comments
+### Comment Lồng Nhau
 
 ```typescript
 @Component({
@@ -101,27 +101,27 @@ export class DashboardComponent {
   template: `
     <div>
       <!-- 
-        Layout structure:
+        Cấu trúc layout:
         Header -> Main Content -> Footer
         
-        Author: John Doe
-        Last updated: 2025-01-15
+        Tác giả: John Doe
+        Cập nhật lần cuối: 2025-01-15
       -->
       
-      <!-- Header Section -->
+      <!-- Phần Header -->
       <header>
         <nav>
-          <!-- Navigation items are defined in NavComponent -->
+          <!-- Navigation items được định nghĩa trong NavComponent -->
         </nav>
       </header>
       
-      <!-- Main Content -->
+      <!-- Nội dung Chính -->
       <main>
-        <!-- Content renders based on current route -->
+        <!-- Nội dung hiển thị dựa trên route hiện tại -->
         <router-outlet />
       </main>
       
-      <!-- Footer Section -->
+      <!-- Phần Footer -->
       <footer>
         <app-footer />
       </footer>
@@ -131,39 +131,39 @@ export class DashboardComponent {
 export class ComplexComponent {}
 ```
 
-## Before vs After
+## Trước vs Sau
 
 ```typescript
-// Before Angular 22 - No comments allowed
+// Trước Angular 22 - Không cho phép comment
 @Component({
   template: `
     <div>
-      <!-- This would cause a compilation error -->
-      <p>Content</p>
+      <!-- Điều này gây lỗi compilation -->
+      <p>Nội dung</p>
     </div>
   `
 })
 
-// Angular 22 - Comments work perfectly
+// Angular 22 - Comment hoạt động hoàn hảo
 @Component({
   template: `
     <div>
-      <!-- This is now valid -->
-      <p>Content</p>
+      <!-- Giờ đây hợp lệ -->
+      <p>Nội dung</p>
     </div>
   `
 })
 ```
 
-## Benefits
+## Lợi Ích
 
-| Use Case | Description |
+| Use Case | Mô tả |
 |----------|-------------|
-| **Documentation** | Explain complex template logic |
-| **Debugging** | Comment out sections during development |
-| **Collaboration** | Leave notes for team members |
-| **Code organization** | Mark sections with descriptive headers |
-| **TODO tracking** | Inline reminders for future work |
+| **Tài liệu hóa** | Giải thích logic template phức tạp |
+| **Debugging** | Comment tạm các phần trong lúc phát triển |
+| **Cộng tác** | Để lại ghi chú cho đồng đội |
+| **Tổ chức code** | Đánh dấu các phần bằng tiêu đề mô tả |
+| **Theo dõi TODO** | Nhắc nhở inline cho công việc tương lai |
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

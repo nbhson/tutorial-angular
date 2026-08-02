@@ -1,34 +1,34 @@
-# OnPush Is the New Default
+# OnPush Là Mặc Định Mới
 
-## Overview
-In Angular 22, components use `ChangeDetectionStrategy.OnPush` by default instead of the old "check always" behavior. This is the natural result of the zoneless, signal-first direction.
+## Tổng quan
+Trong Angular 22, các component mặc định dùng `ChangeDetectionStrategy.OnPush` thay vì hành vi "check always" cũ. Đây là kết quả tự nhiên của định hướng zoneless, signal-first.
 
-## Key Points
+## Điểm chính
 
-- **New default**: Components without `changeDetection` property use `OnPush` automatically
-- **`ChangeDetectionStrategy.Eager`**: New name for the old "check always" default
-- **Automatic migration**: Angular adds `Eager` to existing components where needed
-- **Works with zoneless**: OnPush controls which views get checked; zoneless removes zone.js as trigger
+- **Mặc định mới**: Component không khai báo thuộc tính `changeDetection` sẽ tự động dùng `OnPush`
+- **`ChangeDetectionStrategy.Eager`**: Tên mới cho mặc định "check always" cũ
+- **Migration tự động**: Angular tự động thêm `Eager` vào các component hiện có khi cần
+- **Hoạt động với zoneless**: OnPush quyết định view nào được check; zoneless loại bỏ zone.js làm trigger
 
-## Code Examples
+## Ví dụ Code
 
-### New component (Angular 22 default - OnPush)
+### Component mới (mặc định Angular 22 - OnPush)
 
 ```typescript
-// No changeDetection needed - OnPush is the default
+// Không cần changeDetection - OnPush là mặc định
 @Component({
   selector: 'app-counter',
   template: `{{ count() }}`
 })
 export class Counter {
-  count = signal(0); // OnPush + signals: updates just work
+  count = signal(0); // OnPush + signals: cập nhật tự hoạt động
 }
 ```
 
-### Legacy component (migration adds Eager)
+### Component cũ (migration thêm Eager)
 
 ```typescript
-// The migration adds Eager to keep the old behavior
+// Migration thêm Eager để giữ hành vi cũ
 @Component({
   selector: 'app-legacy',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -37,7 +37,7 @@ export class Counter {
 export class Legacy {}
 ```
 
-### Zoneless app config
+### Cấu hình app zoneless
 
 ```typescript
 // app.config.ts
@@ -48,28 +48,28 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
-## Why It Matters
+## Vì Sao Điều Này Quan Trọng
 
-1. **Performance**: New components get high-performance change detection for free
-2. **Migration path**: `Eager` markers act as a to-do list for step-by-step cleanup
-3. **Signal-first**: When using signals, you usually don't need to think about change detection
-4. **Backward compatible**: Existing apps keep working via automatic migration
+1. **Hiệu năng**: Component mới được tận hưởng change detection hiệu năng cao miễn phí
+2. **Đường migration**: Các marker `Eager` đóng vai trò danh sách việc cần làm để dọn dẹp từng bước
+3. **Signal-first**: Khi dùng signals, bạn thường không cần nghĩ về change detection
+4. **Tương thích ngược**: Các app hiện có vẫn hoạt động nhờ migration tự động
 
-## Migration Strategy
+## Chiến Lược Migration
 
 ```bash
-# Run the automatic migration
+# Chạy migration tự động
 ng generate @angular/core:change-detection-migration
 ```
 
-After migration, search codebase for `Eager` to find components that need cleanup:
+Sau khi migration, tìm kiếm `Eager` trong codebase để xác định các component cần dọn dẹp:
 
 ```typescript
-// Each Eager result is a candidate for OnPush conversion
+// Mỗi kết quả Eager là một ứng viên để chuyển sang OnPush
 @Component({
-  changeDetection: ChangeDetectionStrategy.Eager // ← Remove and use signals
+  changeDetection: ChangeDetectionStrategy.Eager // ← Xóa đi và dùng signals
 })
 ```
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

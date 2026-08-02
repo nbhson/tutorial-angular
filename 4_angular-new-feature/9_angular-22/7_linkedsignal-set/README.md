@@ -1,18 +1,18 @@
-# linkedSignal Gets a Direct `.set()`
+# linkedSignal Có Phương Thức `.set()` Trực Tiếp
 
-## Overview
-Angular 22 adds a direct `.set()` method to `linkedSignal` — no more calling `.set()` through `.asReadonly()` or writing awkward workarounds. You can now both read and write a linked signal from wherever you need it.
+## Tổng quan
+Angular 22 thêm phương thức `.set()` trực tiếp cho `linkedSignal` — không còn phải gọi `.set()` thông qua `.asReadonly()` hoặc viết những cách làm vòng vo. Giờ bạn có thể đọc và ghi một linked signal từ bất cứ đâu cần.
 
-## Key Features
+## Tính năng chính
 
-- **Direct `.set()` method**: No more workaround needed
-- **Writable by default**: `linkedSignal` is now both readable and writable
-- **Backward compatible**: Existing `linkedSignal` usage keeps working
-- **Cleaner code**: Removes boilerplate for write patterns
+- **Phương thức `.set()` trực tiếp**: Không còn cần cách làm vòng vo
+- **Writable theo mặc định**: `linkedSignal` giờ vừa đọc được vừa ghi được
+- **Tương thích ngược**: Cách dùng `linkedSignal` hiện có vẫn hoạt động
+- **Code gọn hơn**: Loại bỏ boilerplate cho các pattern ghi
 
-## Code Examples
+## Ví dụ Code
 
-### Basic linkedSignal with `.set()`
+### linkedSignal cơ bản với `.set()`
 
 ```typescript
 import { Component, signal, linkedSignal } from '@angular/core';
@@ -20,51 +20,51 @@ import { Component, signal, linkedSignal } from '@angular/core';
 @Component({
   selector: 'app-counter',
   template: `
-    <h2>Counter: {{ counter() }}</h2>
-    <button (click)="reset()">Reset</button>
-    <button (click)="setToTen()">Set to 10</button>
+    <h2>Bộ đếm: {{ counter() }}</h2>
+    <button (click)="reset()">Đặt lại</button>
+    <button (click)="setToTen()">Đặt thành 10</button>
   `
 })
 export class CounterComponent {
   source = signal(0);
   
-  // linkedSignal with direct .set()
+  // linkedSignal với .set() trực tiếp
   counter = linkedSignal(() => this.source());
   
   reset() {
-    this.source.set(0); // Changes source, counter updates
+    this.source.set(0); // Thay đổi source, counter tự cập nhật
   }
   
   setToTen() {
-    this.counter.set(10); // Direct set! New in Angular 22
+    this.counter.set(10); // Set trực tiếp! Mới trong Angular 22
   }
 }
 ```
 
-### Before Angular 22 (Workaround Required)
+### Trước Angular 22 (Bắt Buộc Cách Làm Vòng Vo)
 
 ```typescript
-// Angular 21 - had to use awkward patterns
+// Angular 21 - phải dùng các pattern khó xử
 @Component({
   selector: 'app-old-counter',
   template: `
-    <h2>Counter: {{ counter() }}</h2>
-    <button (click)="reset()">Reset</button>
+    <h2>Bộ đếm: {{ counter() }}</h2>
+    <button (click)="reset()">Đặt lại</button>
   `
 })
 export class OldCounterComponent {
   source = signal(0);
   
-  // No direct .set() available
+  // Không có .set() trực tiếp
   counter = linkedSignal(() => this.source());
   
   reset() {
-    this.source.set(0); // Had to modify source instead
+    this.source.set(0); // Phải sửa source thay vì counter
   }
 }
 ```
 
-### Bidirectional Binding with linkedSignal
+### Liên Kết Hai Chiều với linkedSignal
 
 ```typescript
 import { Component, signal, linkedSignal } from '@angular/core';
@@ -73,23 +73,23 @@ import { Component, signal, linkedSignal } from '@angular/core';
   selector: 'app-search',
   template: `
     <input [value]="searchTerm()" (input)="onInput($event)" />
-    <p>Searching for: {{ searchTerm() }}</p>
+    <p>Đang tìm: {{ searchTerm() }}</p>
     @if (debouncedTerm() !== searchTerm()) {
-      <p>Debounced: {{ debouncedTerm() }} (updating...)</p>
+      <p>Debounced: {{ debouncedTerm() }} (đang cập nhật...)</p>
     }
   `
 })
 export class SearchComponent {
   searchTerm = signal('');
   
-  // Computed from source, but also directly settable
+  // Được tính từ source, nhưng cũng set trực tiếp được
   debouncedTerm = linkedSignal(() => this.searchTerm());
   
   onInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.searchTerm.set(value);
     
-    // Debounce: reset after delay
+    // Debounce: đặt lại sau một khoảng delay
     setTimeout(() => {
       this.debouncedTerm.set(value);
     }, 300);
@@ -97,12 +97,12 @@ export class SearchComponent {
 }
 ```
 
-### linkedSignal with Options
+### linkedSignal với Options
 
 ```typescript
 import { linkedSignal } from '@angular/core';
 
-// With equality check
+// Với kiểm tra bằng nhau (equality check)
 const selection = linkedSignal({
   source: () => this.currentItem(),
   computation: (item) => ({
@@ -112,7 +112,7 @@ const selection = linkedSignal({
   equal: (a, b) => a.id === b.id
 });
 
-// With reset behavior
+// Với hành vi reset
 const formField = linkedSignal({
   source: () => this.formData(),
   computation: (data) => ({
@@ -122,25 +122,25 @@ const formField = linkedSignal({
 });
 ```
 
-## API Reference
+## Tham Chiếu API
 
-| Method | Description | New in v22 |
+| Phương thức | Mô tả | Mới trong v22 |
 |--------|-------------|------------|
-| `linkedSignal(() => expr)` | Create a writable linked signal | ✅ `.set()` added |
-| `.set(value)` | Set the value directly | ✅ **New** |
-| `.update(fn)` | Update via function | ✅ **New** |
-| `.asReadonly()` | Get a read-only version | Existing |
+| `linkedSignal(() => expr)` | Tạo một linked signal có thể ghi | ✅ Thêm `.set()` |
+| `.set(value)` | Đặt giá trị trực tiếp | ✅ **Mới** |
+| `.update(fn)` | Cập nhật qua hàm | ✅ **Mới** |
+| `.asReadonly()` | Lấy phiên bản chỉ đọc | Có sẵn |
 
 ## Migration
 
-No changes needed for existing apps. The new `.set()` is purely additive:
+Không cần thay đổi gì cho các app hiện có. `.set()` mới hoàn toàn bổ sung thêm:
 
 ```typescript
-// Both patterns work in Angular 22
+// Cả hai pattern đều hoạt động trong Angular 22
 const counter = linkedSignal(() => this.source());
-counter.set(10);      // New: direct write
-this.source.set(10);  // Existing: still works
+counter.set(10);      // Mới: ghi trực tiếp
+this.source.set(10);  // Có sẵn: vẫn hoạt động
 ```
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

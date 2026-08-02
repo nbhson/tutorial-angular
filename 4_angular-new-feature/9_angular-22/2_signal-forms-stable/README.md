@@ -1,19 +1,19 @@
-# Signal Forms Go Stable
+# Signal Forms Trở Nên Stable
 
-## Overview
-Signal Forms shipped as experimental in Angular 21 and become **stable** in Angular 22. The experimental warnings are gone. The API you already know stays the same.
+## Tổng quan
+Signal Forms phát hành dạng experimental ở Angular 21 và trở thành **stable** trong Angular 22. Các cảnh báo experimental đã biến mất. API bạn đã biết vẫn giữ nguyên.
 
-## Key Features
+## Tính năng chính
 
-- **Stable API**: No more experimental warnings
-- **Typed validation errors**: Built-in errors are properly typed for autocomplete
-- **New validators**: `date` and `limit` validators are now public
-- **Performance**: `FormField.parseErrors` no longer recomputes without reason
-- **Plain-object models**: Clearer support for custom controls
+- **API stable**: Không còn cảnh báo experimental
+- **Lỗi validation có kiểu**: Các lỗi có sẵn được định kiểu đúng để hỗ trợ autocomplete
+- **Validator mới**: Validator `date` và `limit` giờ là public
+- **Hiệu năng**: `FormField.parseErrors` không còn tính toán lại vô lý
+- **Model dạng plain-object**: Hỗ trợ rõ ràng hơn cho custom controls
 
-## Code Examples
+## Ví dụ Code
 
-### Login Form with Signal Forms
+### Login Form với Signal Forms
 
 ```typescript
 import { Component, signal } from '@angular/core';
@@ -36,7 +36,7 @@ interface LoginData {
         }
       }
       <input type="password" [formField]="loginForm.password" />
-      <button type="submit" [disabled]="loginForm().invalid()">Log In</button>
+      <button type="submit" [disabled]="loginForm().invalid()">Đăng nhập</button>
     </form>
   `
 })
@@ -44,9 +44,9 @@ export class LoginComponent {
   loginModel = signal<LoginData>({ email: '', password: '' });
   
   loginForm = form(this.loginModel, (f) => {
-    required(f.email, { message: 'Email is required' });
-    email(f.email, { message: 'Please enter a valid email' });
-    required(f.password, { message: 'Password is required' });
+    required(f.email, { message: 'Email là bắt buộc' });
+    email(f.email, { message: 'Vui lòng nhập email hợp lệ' });
+    required(f.password, { message: 'Mật khẩu là bắt buộc' });
   });
 
   onSubmit(event: Event) {
@@ -58,7 +58,7 @@ export class LoginComponent {
 }
 ```
 
-### Registration Form with Validators
+### Registration Form với Validators
 
 ```typescript
 @Component({
@@ -66,10 +66,10 @@ export class LoginComponent {
   imports: [FormField],
   template: `
     <form [formGroup]="registerForm">
-      <input [formField]="registerForm.firstName" placeholder="First Name" />
-      <input [formField]="registerForm.lastName" placeholder="Last Name" />
+      <input [formField]="registerForm.firstName" placeholder="Tên" />
+      <input [formField]="registerForm.lastName" placeholder="Họ" />
       <input [formField]="registerForm.email" placeholder="Email" />
-      <button type="submit" [disabled]="registerForm().invalid()">Register</button>
+      <button type="submit" [disabled]="registerForm().invalid()">Đăng ký</button>
     </form>
   `
 })
@@ -82,10 +82,10 @@ export class RegisterComponent {
   });
 
   registerForm = form(this.model, (f) => {
-    required(f.firstName, { message: 'First name is required' });
-    required(f.lastName, { message: 'Last name is required' });
-    required(f.email, { message: 'Email is required' });
-    email(f.email, { message: 'Invalid email' });
+    required(f.firstName, { message: 'Tên là bắt buộc' });
+    required(f.lastName, { message: 'Họ là bắt buộc' });
+    required(f.email, { message: 'Email là bắt buộc' });
+    email(f.email, { message: 'Email không hợp lệ' });
   });
 }
 ```
@@ -98,36 +98,36 @@ import { form, required, minLength, maxLength, pattern } from '@angular/forms/si
 const userForm = form(
   signal({ username: '', password: '' }),
   (f) => {
-    required(f.username, { message: 'Username required' });
-    minLength(f.username, { min: 3, message: 'Min 3 characters' });
-    maxLength(f.username, { max: 20, message: 'Max 20 characters' });
-    required(f.password, { message: 'Password required' });
+    required(f.username, { message: 'Username là bắt buộc' });
+    minLength(f.username, { min: 3, message: 'Tối thiểu 3 ký tự' });
+    maxLength(f.username, { max: 20, message: 'Tối đa 20 ký tự' });
+    required(f.password, { message: 'Mật khẩu là bắt buộc' });
     pattern(f.password, { 
       pattern: /^(?=.*[A-Z])(?=.*[0-9])/, 
-      message: 'Must contain uppercase and number' 
+      message: 'Phải chứa chữ hoa và số' 
     });
   }
 );
 ```
 
-## Improvements in Angular 22
+## Cải Tiến trong Angular 22
 
-| Feature | Description |
+| Tính năng | Mô tả |
 |---------|-------------|
-| **Public date/limit validators** | Now part of stable contract |
-| **Typed getError** | Real autocomplete instead of `any` |
-| **Field metadata guide** | Documents previously unofficial patterns |
-| **Performance** | Reduced unnecessary recomputations |
-| **Plain-object models** | Better custom control support |
+| **Validator date/limit public** | Giờ thuộc hợp đồng (contract) stable |
+| **getError có kiểu** | Autocomplete thật thay vì `any` |
+| **Hướng dẫn field metadata** | Ghi lại các pattern trước đây không chính thức |
+| **Hiệu năng** | Giảm các lần tính toán lại không cần thiết |
+| **Model dạng plain-object** | Hỗ trợ custom control tốt hơn |
 
-## Migration from v21
+## Migration từ v21
 
-If you used Signal Forms in v21, no changes needed - the API is identical:
+Nếu bạn đã dùng Signal Forms ở v21, không cần thay đổi gì - API giống hệt:
 
 ```typescript
-// Angular 21 (experimental) - same code works in Angular 22 (stable)
-import { form, required } from '@angular/forms/signals'; // No longer experimental!
+// Angular 21 (experimental) - cùng code vẫn chạy ở Angular 22 (stable)
+import { form, required } from '@angular/forms/signals'; // Không còn experimental!
 ```
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

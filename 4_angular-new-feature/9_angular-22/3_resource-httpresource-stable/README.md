@@ -1,19 +1,19 @@
-# resource() and httpResource Go Stable
+# resource() và httpResource() Trở Nên Stable
 
-## Overview
-`resource()` and `httpResource()` become stable in Angular 22. They let you keep async fetching inside the signal graph instead of moving in and out of RxJS for every request.
+## Tổng quan
+`resource()` và `httpResource()` trở thành stable trong Angular 22. Chúng giúp bạn giữ việc fetch bất đồng bộ bên trong signal graph thay vì phải chuyển qua lại giữa RxJS cho mỗi request.
 
-## Key Features
+## Tính năng chính
 
-- **Stable API**: No more experimental warnings
-- **Signal-based**: Async data stays in the signal graph
-- **Automatic re-fetch**: Resources re-fetch when dependencies change
-- **Loading/error states**: Built-in `isLoading()`, `hasValue()`, `error()`, `value()`
-- **Subscription fix**: `rxResource` no longer leaks subscriptions
+- **API stable**: Không còn cảnh báo experimental
+- **Dựa trên signals**: Dữ liệu bất đồng bộ nằm trong signal graph
+- **Tự động re-fetch**: Resources tự fetch lại khi dependencies thay đổi
+- **Trạng thái loading/error**: Có sẵn `isLoading()`, `hasValue()`, `error()`, `value()`
+- **Sửa lỗi subscription**: `rxResource` không còn rò rỉ subscriptions
 
-## Code Examples
+## Ví dụ Code
 
-### Basic httpResource
+### httpResource cơ bản
 
 ```typescript
 import { Component, signal } from '@angular/core';
@@ -29,24 +29,24 @@ interface User {
   selector: 'app-user',
   template: `
     @if (user.isLoading()) {
-      <p>Loading…</p>
+      <p>Đang tải…</p>
     } @else if (user.hasValue()) {
       <h1>{{ user.value().name }}</h1>
       <p>{{ user.value().email }}</p>
     } @else if (user.error()) {
-      <p>Error loading user</p>
+      <p>Lỗi khi tải user</p>
     }
   `
 })
 export class UserComponent {
   userId = signal(1);
   
-  // Re-fetches automatically whenever userId changes
+  // Tự động re-fetch mỗi khi userId thay đổi
   user = httpResource<User>(() => `/api/users/${this.userId()}`);
 }
 ```
 
-### resource() with custom loader
+### resource() với custom loader
 
 ```typescript
 import { resource, signal } from '@angular/core';
@@ -55,7 +55,7 @@ import { resource, signal } from '@angular/core';
   selector: 'app-posts',
   template: `
     @if (posts.isLoading()) {
-      <p>Loading posts...</p>
+      <p>Đang tải posts...</p>
     } @else {
       @for (post of posts.value(); track post.id) {
         <article>{{ post.title }}</article>
@@ -76,7 +76,7 @@ export class PostsComponent {
 }
 ```
 
-### rxResource (RxJS-based)
+### rxResource (dựa trên RxJS)
 
 ```typescript
 import { rxResource } from '@angular/core';
@@ -105,18 +105,18 @@ export class ProductComponent {
 }
 ```
 
-### Resource with error handling
+### Resource với xử lý lỗi
 
 ```typescript
 @Component({
   selector: 'app-data',
   template: `
     @if (data.isLoading()) {
-      <p>Loading...</p>
+      <p>Đang tải...</p>
     } @else if (data.error()) {
       <div class="error">
         <p>{{ data.error()?.message }}</p>
-        <button (click)="data.reload()">Retry</button>
+        <button (click)="data.reload()">Thử lại</button>
       </div>
     } @else {
       <pre>{{ data.value() | json }}</pre>
@@ -133,32 +133,32 @@ export class DataComponent {
 }
 ```
 
-## Resource API Reference
+## Tham Chiếu API Resource
 
-| Method | Description |
+| Phương thức | Mô tả |
 |--------|-------------|
-| `value()` | Returns current value |
-| `isLoading()` | Returns `true` while loading |
-| `hasValue()` | Returns `true` if value exists |
-| `error()` | Returns error if any |
-| `reload()` | Triggers refetch |
-| `cancel()` | Cancels pending request |
+| `value()` | Trả về giá trị hiện tại |
+| `isLoading()` | Trả về `true` khi đang tải |
+| `hasValue()` | Trả về `true` nếu có giá trị |
+| `error()` | Trả về lỗi nếu có |
+| `reload()` | Kích hoạt fetch lại |
+| `cancel()` | Hủy request đang chờ |
 
-## Bug Fixes in Angular 22
+## Sửa Lỗi trong Angular 22
 
-| Fix | Description |
+| Sửa lỗi | Mô tả |
 |-----|-------------|
-| **Subscription leak** | `rxResource` no longer leaks subscriptions in long-running apps |
-| **URL sanitizer** | Resource URL sanitizer lookup is now case-insensitive |
+| **Rò rỉ subscription** | `rxResource` không còn rò rỉ subscriptions trong các app chạy lâu |
+| **URL sanitizer** | Tra cứu sanitizer URL resource giờ không phân biệt hoa thường |
 
-## Migration from v21
+## Migration từ v21
 
-If you used resources in v21, the API is identical:
+Nếu bạn đã dùng resources ở v21, API giống hệt:
 
 ```typescript
-// Angular 21 (experimental) - same code works in Angular 22 (stable)
-import { httpResource } from '@angular/common/http'; // No longer experimental!
+// Angular 21 (experimental) - cùng code vẫn chạy ở Angular 22 (stable)
+import { httpResource } from '@angular/common/http'; // Không còn experimental!
 ```
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

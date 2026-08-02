@@ -1,32 +1,32 @@
-# Language Service and DevTools
+# Language Service và DevTools
 
-## Overview
-Angular 22 brings significant improvements to the Angular Language Service and DevTools, providing better developer experience with enhanced debugging, performance profiling, and code intelligence.
+## Tổng quan
+Angular 22 mang đến những cải tiến đáng kể cho Angular Language Service và DevTools, mang lại trải nghiệm developer tốt hơn với khả năng debugging nâng cao, profiling hiệu năng và code intelligence.
 
-## Key Features
+## Tính năng chính
 
-- **Language Service improvements**: Better autocomplete, diagnostics, and refactoring
-- **DevTools updates**: Enhanced debugging capabilities
-- **Signal visualization**: See signal dependencies in real-time
-- **Performance profiling**: Track component render times
-- **Template debugging**: Improved template error messages
+- **Cải tiến Language Service**: Autocomplete, diagnostics và refactoring tốt hơn
+- **Cập nhật DevTools**: Khả năng debugging nâng cao
+- **Trực quan hóa signals**: Xem dependencies của signals theo thời gian thực
+- **Profiling hiệu năng**: Theo dõi thời gian render của component
+- **Debugging template**: Cải thiện thông báo lỗi template
 
-## Code Examples
+## Ví dụ Code
 
-### Language Service Features
+### Tính Năng Language Service
 
 ```typescript
-// Angular Language Service provides intelligent suggestions
+// Angular Language Service cung cấp gợi ý thông minh
 @Component({
   selector: 'app-demo',
   template: `
-    <!-- Autocomplete for signals -->
+    <!-- Autocomplete cho signals -->
     {{ count() }}
     
-    <!-- Autocomplete for component properties -->
+    <!-- Autocomplete cho thuộc tính component -->
     {{ userName() }}
     
-    <!-- Type-safe pipe arguments -->
+    <!-- Đối số pipe type-safe -->
     {{ amount | currency:'USD':'symbol' }}
   `
 })
@@ -40,7 +40,7 @@ export class DemoComponent {
 ### DevTools Signal Inspector
 
 ```typescript
-// DevTools now shows signal graph visualization
+// DevTools giờ hiển thị trực quan hóa signal graph
 import { Component, signal, computed } from '@angular/core';
 
 @Component({
@@ -52,24 +52,24 @@ import { Component, signal, computed } from '@angular/core';
   `
 })
 export class InspectableComponent {
-  // DevTools shows these as a dependency graph
+  // DevTools hiển thị chúng dưới dạng dependency graph
   count = signal(0);           // Source signal
-  doubled = computed(() => this.count() * 2);  // Depends on count
-  status = computed(() =>      // Depends on count
+  doubled = computed(() => this.count() * 2);  // Phụ thuộc vào count
+  status = computed(() =>      // Phụ thuộc vào count
     this.count() > 10 ? 'High' : 'Normal'
   );
   
   increment() {
     this.count.update(c => c + 1);
-    // DevTools shows: count updated → doubled re-computed → status re-computed
+    // DevTools hiển thị: count đã cập nhật → doubled tính lại → status tính lại
   }
 }
 ```
 
-### Performance Profiling with DevTools
+### Profiling Hiệu Năng với DevTools
 
 ```typescript
-// DevTools Component Profiler tracks render performance
+// DevTools Component Profiler theo dõi hiệu năng render
 @Component({
   selector: 'app-data-table',
   template: `
@@ -81,40 +81,40 @@ export class InspectableComponent {
 export class DataTableComponent {
   allRows = signal<Row[]>([]);
   
-  // DevTools shows when this recomputes
+  // DevTools hiển thị khi nào cái này tính toán lại
   visibleRows = computed(() => 
     this.allRows().filter(r => r.visible)
   );
   
-  // DevTools profiler shows:
-  // - Component initialization time
-  // - Change detection cycles
-  // - Signal update frequency
-  // - Render time per update
+  // DevTools profiler hiển thị:
+  // - Thời gian khởi tạo component
+  // - Chu kỳ change detection
+  // - Tần suất cập nhật signal
+  // - Thời gian render mỗi lần cập nhật
 }
 ```
 
-### Language Service Diagnostics
+### Diagnostics Language Service
 
 ```typescript
-// Angular Language Service catches common errors
+// Angular Language Service phát hiện các lỗi phổ biến
 
 @Component({
   selector: 'app-diagnostics',
   template: `
-    <!-- ✅ Language Service knows this is valid -->
+    <!-- ✅ Language Service biết cái này hợp lệ -->
     @if (isVisible()) {
-      <p>Visible content</p>
+      <p>Nội dung hiển thị</p>
     }
     
-    <!-- ✅ Proper signal call detection -->
+    <!-- ✅ Phát hiện gọi signal đúng cách -->
     <span>{{ counter() }}</span>
     
-    <!-- ✅ Catches missing signal calls -->
-    <!-- <span>{{ counter }}</span> → Warning: Did you mean counter()? -->
+    <!-- ✅ Phát hiện thiếu dấu () khi gọi signal -->
+    <!-- <span>{{ counter }}</span> → Cảnh báo: Ý bạn là counter()? -->
     
-    <!-- ✅ Template type checking -->
-    <!-- {{ undefined.property }} → Error: Property 'property' does not exist -->
+    <!-- ✅ Kiểm tra kiểu template -->
+    <!-- {{ undefined.property }} → Lỗi: Thuộc tính 'property' không tồn tại -->
   `
 })
 export class DiagnosticsComponent {
@@ -123,26 +123,26 @@ export class DiagnosticsComponent {
 }
 ```
 
-### Refactoring Support
+### Hỗ Trợ Refactoring
 
 ```typescript
-// Language Service supports safe refactoring
+// Language Service hỗ trợ refactoring an toàn
 
-// Rename signal → automatically updates all template references
-// Before:
+// Đổi tên signal → tự động cập nhật mọi tham chiếu trong template
+// Trước:
 count = signal(0);        // Template: {{ count() }}
 
-// After renaming to "itemCount":
-itemCount = signal(0);    // Template: {{ itemCount() }}  ← Auto-updated!
+// Sau khi đổi tên thành "itemCount":
+itemCount = signal(0);    // Template: {{ itemCount() }}  ← Tự động cập nhật!
 
-// Extract method refactoring in templates
-// Split complex expressions into readable methods
+// Extract method refactoring trong templates
+// Tách các biểu thức phức tạp thành các method dễ đọc
 @Component({
   template: `
-    <!-- Before: Complex inline expression -->
+    <!-- Trước: Biểu thức inline phức tạp -->
     <!-- {{ items().filter(i => i.active).map(i => i.name).join(', ') }} -->
     
-    <!-- After refactoring: Clean method call -->
+    <!-- Sau refactoring: Gọi method sạch sẽ -->
     {{ activeItemNames() }}
   `
 })
@@ -158,35 +158,35 @@ export class RefactorDemoComponent {
 }
 ```
 
-## DevTools Features
+## Tính Năng DevTools
 
-| Feature | Description |
+| Tính năng | Mô tả |
 |---------|-------------|
-| **Signal Inspector** | View signal values and dependency graph |
-| **Component Profiler** | Track render times and change detection cycles |
-| **State Explorer** | Inspect component state in real-time |
-| **Router Inspector** | Visualize route tree and navigation |
-| **Dependency Graph** | See component hierarchy and injection tree |
-| **Template Debugger** | Step through template rendering |
+| **Signal Inspector** | Xem giá trị signal và dependency graph |
+| **Component Profiler** | Theo dõi thời gian render và chu kỳ change detection |
+| **State Explorer** | Kiểm tra state của component theo thời gian thực |
+| **Router Inspector** | Trực quan hóa route tree và điều hướng |
+| **Dependency Graph** | Xem hệ thống phân cấp component và injection tree |
+| **Template Debugger** | Đi qua từng bước quá trình render template |
 
-## Language Service Features
+## Tính Năng Language Service
 
-| Feature | Description |
+| Tính năng | Mô tả |
 |---------|-------------|
-| **Autocomplete** | Smart suggestions for signals, pipes, directives |
-| **Diagnostics** | Real-time error detection in templates |
-| **Hover Info** | Type information on hover |
-| **Go to Definition** | Navigate to component/directive definitions |
-| **Find References** | Locate all usages of components/pipes |
-| **Quick Fixes** | Automated suggestions for common issues |
+| **Autocomplete** | Gợi ý thông minh cho signals, pipes, directives |
+| **Diagnostics** | Phát hiện lỗi theo thời gian thực trong templates |
+| **Hover Info** | Thông tin kiểu khi hover |
+| **Go to Definition** | Điều hướng tới định nghĩa component/directive |
+| **Find References** | Xác định mọi nơi dùng components/pipes |
+| **Quick Fixes** | Đề xuất tự động cho các vấn đề phổ biến |
 
-## Setup
+## Thiết Lập
 
 ```bash
-# Install Angular Language Service in VS Code
+# Cài Angular Language Service trong VS Code
 code install Angular.ng-template
 
-# Enable strict mode in tsconfig.json
+# Bật strict mode trong tsconfig.json
 {
   "angularCompilerOptions": {
     "strictTemplates": true,
@@ -195,5 +195,5 @@ code install Angular.ng-template
 }
 ```
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

@@ -1,31 +1,31 @@
-# Compiler and Type-Safety Improvements
+# Cải Thiện Compiler và Type-Safety
 
-## Overview
-Angular 22 strengthens type safety across the framework and cleans up internal compiler paths.
+## Tổng quan
+Angular 22 tăng cường type safety trên toàn framework và dọn dẹp các đường đi nội bộ của compiler.
 
-## Key Features
+## Tính năng chính
 
-- **Stricter type checking**: Better TypeScript integration
-- **Compiler optimizations**: Faster compilation with cleaner internal paths
-- **Signal type inference**: Improved type inference for signals
-- **Template type checking**: Enhanced template diagnostics
+- **Type checking chặt chẽ hơn**: Tích hợp TypeScript tốt hơn
+- **Tối ưu compiler**: Biên dịch nhanh hơn với các đường đi nội bộ sạch hơn
+- **Suy luận kiểu cho signals**: Cải thiện suy luận kiểu (type inference) cho signals
+- **Kiểm tra kiểu template**: Nâng cao diagnostics template
 
-## Code Examples
+## Ví dụ Code
 
-### Strict Template Type Checking
+### Kiểm Tra Kiểu Template Chặt Chẽ
 
 ```typescript
-// Angular 22: Stricter template type checking enabled by default
+// Angular 22: Kiểm tra kiểu template chặt chẽ hơn được bật theo mặc định
 @Component({
   selector: 'app-strict-demo',
   template: `
-    <!-- ✅ Type-safe: Angular knows this is a number -->
+    <!-- ✅ Type-safe: Angular biết đây là số -->
     <span>{{ count() }}</span>
     
-    <!-- ❌ Type error: Angular catches this at compile time -->
+    <!-- ❌ Lỗi kiểu: Angular phát hiện ở thời điểm compile -->
     <!-- <span>{{ count() + "not a number" }}</span> -->
     
-    <!-- ✅ Type-safe: Proper null check -->
+    <!-- ✅ Type-safe: Kiểm tra null đúng cách -->
     @if (user()) {
       <span>{{ user()!.name }}</span>
     }
@@ -37,10 +37,10 @@ export class StrictDemoComponent {
 }
 ```
 
-### Signal Type Inference
+### Suy Luận Kiểu Cho Signals
 
 ```typescript
-// Angular 22: Better type inference for complex signal types
+// Angular 22: Suy luận kiểu tốt hơn cho các kiểu signal phức tạp
 interface User {
   id: number;
   name: string;
@@ -54,7 +54,7 @@ interface User {
 @Component({
   selector: 'app-user-profile',
   template: `
-    <!-- Full type safety with nested properties -->
+    <!-- Type safety đầy đủ với các thuộc tính lồng nhau -->
     <div [class]="user().preferences.theme">
       <h2>{{ user().name }}</h2>
       <p>{{ user().email }}</p>
@@ -63,7 +63,7 @@ interface User {
   `
 })
 export class UserProfileComponent {
-  // Angular 22: Full type inference for complex signals
+  // Angular 22: Suy luận kiểu đầy đủ cho các signal phức tạp
   user = signal<User>({
     id: 1,
     name: 'John',
@@ -73,44 +73,44 @@ export class UserProfileComponent {
 }
 ```
 
-### Strict Event Binding
+### Event Binding Chặt Chẽ
 
 ```typescript
 @Component({
   selector: 'app-form',
   template: `
-    <!-- Angular 22: Proper event type inference -->
+    <!-- Angular 22: Suy luận kiểu event đúng cách -->
     <input (input)="onInput($event)" />
-    <button (click)="onClick($event)">Submit</button>
+    <button (click)="onClick($event)">Gửi</button>
     <form (submit)="onSubmit($event)">
       <input type="text" />
     </form>
   `
 })
 export class FormComponent {
-  // $event is properly typed as InputEvent
+  // $event được định kiểu đúng là InputEvent
   onInput(event: InputEvent) {
     const value = (event.target as HTMLInputElement).value;
     console.log(value);
   }
 
-  // $event is properly typed as MouseEvent
+  // $event được định kiểu đúng là MouseEvent
   onClick(event: MouseEvent) {
     console.log(event.clientX, event.clientY);
   }
 
-  // $event is properly typed as SubmitEvent
+  // $event được định kiểu đúng là SubmitEvent
   onSubmit(event: SubmitEvent) {
     event.preventDefault();
-    console.log('Form submitted');
+    console.log('Form đã gửi');
   }
 }
 ```
 
-### Typed Dependency Injection
+### Dependency Injection Có Kiểu
 
 ```typescript
-// Angular 22: Better type safety for injection tokens
+// Angular 22: Type safety tốt hơn cho injection tokens
 import { InjectionToken, inject } from '@angular/core';
 
 interface AppConfig {
@@ -121,7 +121,7 @@ interface AppConfig {
 
 const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');
 
-// Type-safe usage
+// Sử dụng type-safe
 @Component({
   selector: 'app-config-demo',
   template: `
@@ -131,10 +131,10 @@ const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');
 })
 export class ConfigDemoComponent {
   private config = inject(APP_CONFIG);
-  // config is fully typed as AppConfig
+  // config được định kiểu đầy đủ là AppConfig
   
   constructor() {
-    // TypeScript enforces the interface
+    // TypeScript thực thi interface
     console.log(this.config.apiUrl);    // ✅ string
     console.log(this.config.timeout);   // ✅ number
     console.log(this.config.debug);     // ✅ boolean
@@ -142,10 +142,10 @@ export class ConfigDemoComponent {
 }
 ```
 
-### Generic Component Type Safety
+### Type Safety Cho Component Generic
 
 ```typescript
-// Angular 22: Enhanced generic type support
+// Angular 22: Hỗ trợ generic type nâng cao
 @Component({
   selector: 'app-list',
   template: `
@@ -170,15 +170,15 @@ export class ListComponent<T extends { id: number }> {
 }
 ```
 
-## Type Safety Improvements
+## Cải Thiện Type Safety
 
-| Feature | Before | After |
+| Tính năng | Trước | Sau |
 |---------|--------|-------|
-| **Signal types** | Basic inference | Full generic support |
-| **Template checking** | Optional warnings | Strict by default |
-| **Event types** | Often `any` | Proper `$event` typing |
-| **DI tokens** | Loose typing | Enforced interfaces |
-| **Generic components** | Limited support | Enhanced type inference |
+| **Signal types** | Suy luận cơ bản | Hỗ trợ generic đầy đủ |
+| **Template checking** | Cảnh báo tùy chọn | Chặt chẽ theo mặc định |
+| **Event types** | Thường là `any` | Định kiểu `$event` đúng |
+| **DI tokens** | Định kiểu lỏng lẻo | Thực thi interface |
+| **Generic components** | Hỗ trợ hạn chế | Suy luận kiểu nâng cao |
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

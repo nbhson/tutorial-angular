@@ -1,23 +1,23 @@
-# Router: Params Inheritance by Default
+# Router: Kế Thừa Params Theo Mặc Định
 
-## Overview
-Angular 22 router makes params inheritance the default. Child routes automatically receive parent route params without extra configuration.
+## Tổng quan
+Router Angular 22 đặt kế thừa params làm mặc định. Child routes tự động nhận params của parent route mà không cần cấu hình thêm.
 
-## Key Features
+## Tính năng chính
 
-- **Default behavior**: Child routes inherit parent params automatically
-- **Simpler configuration**: No need to set `paramsInheritanceStrategy` manually
-- **Backward compatible**: Existing apps with explicit config keep working
-- **Cleaner code**: Less boilerplate in route definitions
+- **Hành vi mặc định**: Child routes tự động kế thừa params của parent
+- **Cấu hình đơn giản hơn**: Không cần đặt `paramsInheritanceStrategy` thủ công
+- **Tương thích ngược**: Các app hiện có với cấu hình tường minh vẫn hoạt động
+- **Code gọn hơn**: Ít boilerplate trong route definitions
 
-## Code Examples
+## Ví dụ Code
 
-### Route Configuration (Angular 22 Default)
+### Cấu Hình Route (Mặc Định Angular 22)
 
 ```typescript
 import { Routes } from '@angular/router';
 
-// Angular 22: params inheritance is the default
+// Angular 22: kế thừa params là mặc định
 const routes: Routes = [
   {
     path: 'users/:userId',
@@ -26,20 +26,20 @@ const routes: Routes = [
       {
         path: 'posts/:postId',
         component: PostDetailComponent
-        // postId is available automatically
-        // userId is ALSO available (inherited from parent)
+        // postId có sẵn tự động
+        // userId CŨNG có sẵn (kế thừa từ parent)
       },
       {
         path: 'settings',
         component: UserSettingsComponent
-        // userId available here too
+        // userId cũng có sẵn ở đây
       }
     ]
   }
 ];
 ```
 
-### Accessing Inherited Params
+### Truy Cập Params Kế Thừa
 
 ```typescript
 import { Component, inject } from '@angular/core';
@@ -49,13 +49,13 @@ import { toSignal } from '@angular/core/rxjs-interop';
 @Component({
   selector: 'app-post-detail',
   template: `
-    <h2>Post {{ postId() }} by User {{ userId() }}</h2>
+    <h2>Bài viết {{ postId() }} của User {{ userId() }}</h2>
   `
 })
 export class PostDetailComponent {
   private route = inject(ActivatedRoute);
   
-  // Both params available without extra config
+  // Cả hai params đều có sẵn mà không cần cấu hình thêm
   postId = toSignal(this.route.paramMap.pipe(
     map(params => params.get('postId'))
   ));
@@ -66,15 +66,15 @@ export class PostDetailComponent {
 }
 ```
 
-### Before Angular 22 (Manual Config Required)
+### Trước Angular 22 (Bắt Buộc Cấu Hình Thủ Công)
 
 ```typescript
-// Angular 21 and earlier - had to explicitly configure
+// Angular 21 và trước đó - phải cấu hình tường minh
 const routes: Routes = [
   {
     path: 'users/:userId',
     component: UserLayoutComponent,
-    paramsInheritanceStrategy: 'always', // Manual!
+    paramsInheritanceStrategy: 'always', // Thủ công!
     children: [
       {
         path: 'posts/:postId',
@@ -85,12 +85,12 @@ const routes: Routes = [
 ];
 ```
 
-### With Route Guards
+### Với Route Guards
 
 ```typescript
 import { CanActivateFn, ActivatedRouteSnapshot } from '@angular/router';
 
-// Guard can access both parent and child params
+// Guard có thể truy cập cả params của parent lẫn child
 const postGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
   const userId = route.parent?.paramMap.get('userId');
   const postId = route.paramMap.get('postId');
@@ -107,7 +107,7 @@ const routes: Routes = [
         path: 'posts/:postId',
         component: PostDetailComponent,
         canActivate: [postGuard]
-        // Both userId and postId available in guard
+        // Cả userId và postId đều có sẵn trong guard
       }
     ]
   }
@@ -116,22 +116,22 @@ const routes: Routes = [
 
 ## Migration
 
-No changes needed for existing apps. If you previously set `paramsInheritanceStrategy: 'always'`, you can now remove it:
+Không cần thay đổi gì cho các app hiện có. Nếu trước đây bạn đặt `paramsInheritanceStrategy: 'always'`, giờ bạn có thể bỏ nó:
 
 ```typescript
-// Before Angular 22
+// Trước Angular 22
 {
   path: 'users/:userId',
-  paramsInheritanceStrategy: 'always', // ← Can remove this now
+  paramsInheritanceStrategy: 'always', // ← Giờ có thể bỏ
   children: [...]
 }
 
-// Angular 22 - same behavior, less config
+// Angular 22 - cùng hành vi, ít cấu hình hơn
 {
   path: 'users/:userId',
-  children: [...] // Params inherited by default
+  children: [...] // Params kế thừa theo mặc định
 }
 ```
 
-## References
+## Tham khảo
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)
