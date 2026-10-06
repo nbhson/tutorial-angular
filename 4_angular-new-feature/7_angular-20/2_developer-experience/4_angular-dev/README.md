@@ -1,8 +1,6 @@
-# 4. angular.dev — Documentation Site Mới (Angular 20)
+# 4. angular.dev — Documentation Site (launch từ v17–v18, KHÔNG phải v20)
 
-## Tổng quan
-
-Angular 20 giới thiệu **angular.dev** — documentation site mới thay thế `angular.io`, với giao diện hiện đại, tutorial interactive, code playground, và tích hợp AI assistant. Đây là bước nâng cấp lớn cho developer experience.
+> Đính chính: **angular.dev launch từ v17–v18**, không phải mới v20. File này chỉ nhắc lại.
 
 ## URL mới
 

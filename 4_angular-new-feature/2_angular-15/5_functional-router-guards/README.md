@@ -37,6 +37,9 @@ const routes: Routes = [
 
 ## Sau Angular 15
 
+> Best practice official: nếu cần redirect, trả về `UrlTree`/`RedirectCommand`,
+> không `navigate()` rồi `return false`. Docs: https://angular.dev/guide/routing/route-guards
+
 ```ts
 // Functional guard - gọn hơn nhiều
 export const authGuard: CanActivateFn = (route, state) => {
@@ -46,8 +49,8 @@ export const authGuard: CanActivateFn = (route, state) => {
   if (authService.isLoggedIn()) {
     return true;
   }
-  router.navigate(['/login']);
-  return false;
+  // Redirect đúng chuẩn: return UrlTree
+  return router.parseUrl(`/login?returnUrl=${state.url}`);
 };
 
 // Route config
@@ -72,10 +75,7 @@ export const authGuard: CanActivateFn = (route, state) => {
   return authService.isLoggedIn().pipe(
     map(isLoggedIn => {
       if (!isLoggedIn) {
-        router.navigate(['/login'], {
-          queryParams: { returnUrl: state.url }
-        });
-        return false;
+        return router.parseUrl(`/login?returnUrl=${state.url}`);
       }
       return true;
     })
@@ -97,8 +97,7 @@ export const roleGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  router.navigate(['/unauthorized']);
-  return false;
+  return router.parseUrl('/unauthorized');
 };
 
 // Route config
@@ -115,7 +114,12 @@ const routes: Routes = [
 ### 3. Deactivate Guard
 
 ```ts
-export const unsavedChangesGuard: CanDeactivateFn<any> = (component) => {
+export const unsavedChangesGuard: CanDeactivateFn<EditProfileComponent> = (
+  component,
+  currentRoute,
+  currentState,
+  nextState
+) => {
   if (component.hasUnsavedChanges) {
     return confirm('Bạn có thay đổi chưa lưu. Bạn có muốn rời đi?');
   }
@@ -158,7 +162,8 @@ Functional Guard:
 2. **Sử dụng `inject()`** – Trong functional guards
 3. **Extract logic** – Tách business logic ra services
 4. **Test cả hai** – Functional guards vẫn test được
+5. **Đủ bộ functional equivalents** – `CanActivateFn`, `CanActivateChildFn`, `CanMatchFn`, `CanDeactivateFn<T>`, `ResolveFn<T>`; class/`InjectionToken` guards đã deprecated (PR #47924). Xem: https://angular.dev/api/router
 
 ---
 
-**Summary**: Functional router guards giúp giảm boilerplate code trong routing guards. Sử dụng `inject()` function thay vì constructor injection, code gọn hơn và tree-shakable hơn.
+**Summary**: Functional router guards giúp giảm boilerplate code trong routing guards. Sử dụng `inject()` function thay vì constructor injection, code gọn hơn và tree-shakable hơn. Router v15 còn auto-unwrap `default export` khi lazy-load.

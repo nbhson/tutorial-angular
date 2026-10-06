@@ -1,6 +1,5 @@
-import { afterRender, Component, computed, ElementRef, signal, viewChild } from '@angular/core';
+import { afterNextRender, afterRender, Component, computed, ElementRef, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { animationFrameScheduler, interval, Subscription, take } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -9,59 +8,29 @@ import { animationFrameScheduler, interval, Subscription, take } from 'rxjs';
   imports: [FormsModule],
 })
 export class AppComponent {
-  secretWord = signal('angular18');
+  secretWord = signal('angular17');
   word = signal('');
   success = computed(() => this.secretWord() === this.word());
+  // Note: viewChild.required() là v17.2 preview / v18 stable — v17.0 dùng viewChild() + optional check
   wordBlock = viewChild<ElementRef>('wordBlock');
-  subscriptions: Subscription[] = [];
-
-  counter = 0;
 
   constructor() {
-    afterRender({
-      write: () => {
-        this.wordBlock()!.nativeElement.style.backgroundColor = this.success()
-          ? 'green'
-          : 'red';
-
-        this.subscriptions.push(
-          interval(0, animationFrameScheduler)
-            .pipe(take(10))
-            .subscribe({
-              next: (percentage) => {
-                console.log(percentage);
-                this.wordBlock()!.nativeElement.style.width = percentage + '%';
-              },
-              complete: () => {
-                console.log('complete');
-                this.subscriptions.forEach((subs) => subs.unsubscribe());
-              }
-            })
-        );
-      },
-      read: (data) => {
-        console.log(data);
-      },
-      mixedReadWrite: (data) => {
-        console.log(data);
-      },
+    // v17 API: afterNextRender(cb) — chạy 1 lần sau render đầu tiên
+    afterNextRender(() => {
+      console.log('First render done, DOM ready:', this.wordBlock()?.nativeElement);
     });
 
-
-  //   afterNextRender({
-  //     mixedReadWrite: () => {
-  //       this._resizeObserver = new ResizeObserver(() => {
-  //         if (this.counter === 20) {
-  //           this._resizeObserver?.disconnect();
-  //           this._resizeObserver = null;
-  //         }
-  //         console.log('WINDOW RESIZED!');
-  //         this.counter++;
-          
-  //       });
-  //       this._resizeObserver.observe(this.resize()!.nativeElement);
-  //     }
-  //   });
-  // }
+    // v17 API: afterRender(cb, {phase}) — object spec {write, read, ...} là từ v18.1+
+    // Giữ AfterRenderRef để .destroy() khi cleanup (tránh leak subscription trong callback)
+    const ref = afterRender(
+      () => {
+        const el = this.wordBlock()?.nativeElement;
+        if (el) {
+          el.style.backgroundColor = this.success() ? 'green' : 'red';
+        }
+      },
+      { phase: 'write' }
+    );
+    // Khi không cần nữa: ref.destroy();
   }
 }

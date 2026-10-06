@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  StatusChangeEvent,
+  Validators,
+  ValueChangeEvent,
+} from '@angular/forms';
+import { filter, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -43,11 +50,21 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private fromChange() {
-    const firstName$ = this.f['firstName'].events.subscribe((event) => {
+    // Lọc đúng class event bằng instanceof — không check string event.type,
+    // lấy giá trị mới qua event.value (không có event.previousValue)
+    const firstNameValue$ = this.f['firstName'].events.pipe(
+      filter((e): e is ValueChangeEvent<string | null> => e instanceof ValueChangeEvent),
+    ).subscribe((event) => {
+      console.log('Value changed to:', event.value);
+      console.log('Source value:', event.source.value);
+    });
+
+    const firstNameStatus$ = this.f['firstName'].events.pipe(
+      filter((e): e is StatusChangeEvent => e instanceof StatusChangeEvent),
+    ).subscribe((event) => {
       const value = event.source.value as string;
       const status = event.source.status;
 
-      console.log('Value changed to:', value);
       console.log('Control status changed to:', status);
 
       if (status === 'INVALID' && value.includes('1')) {
@@ -57,12 +74,13 @@ export class AppComponent implements OnInit, OnDestroy {
           Validators.minLength(1)
         ]);
 
-        // step 2 - update the validation state of the control 
+        // step 2 - update the validation state of the control
         this.f['firstName'].updateValueAndValidity();
       }
     });
 
-    this._subscription.add(firstName$);
+    this._subscription.add(firstNameValue$);
+    this._subscription.add(firstNameStatus$);
   }
 
   get f() {

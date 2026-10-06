@@ -15,12 +15,23 @@ Trước Angular 19, nếu bạn muốn một derived value có thể override:
 ## Cú pháp
 
 ```ts
+// Dạng options đầy đủ
 linkedSignal<S, D>({
   source: () => S,
-  computation: (source, previous?) => D,
-  equal?: ValueEqualityFn<D>
+  computation: (source: S, previous?: { source: S; value: D }) => D,
+  equal?: ValueEqualityFn<D>,
+  debugName?: string,
+}): WritableSignal<D>
+
+// Dạng shorthand — computation trực tiếp (không cần source tách riêng)
+linkedSignal<D>(computation: () => D, options?: {
+  equal?: ValueEqualityFn<D>,
+  debugName?: string,
 }): WritableSignal<D>
 ```
+
+> `linkedSignal` ra mắt ở v19 dưới dạng **experimental**, trở thành **stable từ v20**.
+> `equal` dùng để custom so sánh (tránh re-emit khi giá trị tương đương), `debugName` dùng cho debugging trong DevTools.
 
 ## Files trong project
 
@@ -51,15 +62,20 @@ export class AppComponent {
   favoriteColorId = linkedSignal<Color[], number | null>({
     source: this.colorOptions,
     computation: (source, previous) => {
-      // Nếu trước đó đã chọn → giữ nguyên nếu vẫn tồn tại
-      if (previous?.value) {
+      // previous có shape { source: S; value: D } — KHÔNG phải previous?.value optional-chain sai kiểu
+      // nên đọc previous.value (kiểm tra previous tồn tại trước)
+      if (previous && previous.value !== null) {
         return source.some(color => color.id === previous.value)
           ? previous.value
           : null;
       }
       return null;
-    }
+    },
+    equal: (a, b) => a === b, // optional — custom equality
   });
+
+  // Dạng shorthand — không cần source tách riêng:
+  // greeting = linkedSignal(() => `Hello ${this.colorOptions().length} colors`);
 
   // Set thủ công — WritableSignal
   onFavoriteColorChange(colorId: number): void {
@@ -121,6 +137,8 @@ Bước 3: changeColorOptions() → [Red(1), Yellow(4), Orange(5)]
 - **Form state** cần reset khi source thay đổi (ví dụ: danh sách item thay đổi → reset selection)
 - **Derived state** cần override thủ công
 - **UI state** phụ thuộc data nhưng user có thể customize
+
+> Lưu ý version: `linkedSignal` là **experimental trong v19**, **stable từ v20**. API `previous` luôn có dạng `{ source, value }` — đọc `previous.value` (sau khi check `previous` tồn tại), không dùng `previous?.value` như truthy-check cho `0`/`''` vì sẽ bỏ qua giá trị falsy hợp lệ.
 
 ## Reference
 

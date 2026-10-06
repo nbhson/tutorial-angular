@@ -1,8 +1,7 @@
-# 1. Signal Inputs Stable (Angular 20)
+# 1. Signal Inputs (`input()`) — đã stable TRƯỚC v20, nhắc lại
 
-## Tổng quan
-
-Angular 20 chính thức đưa `input()` — Signal-based Input API — từ **Developer Preview** sang **Stable**. Đây là cách mới để khai báo inputs trong components, thay thế `@Input()` decorator.
+> Đính chính: `input()` đã stable **trước v20** (v17–v19), KHÔNG phải mới/stable trong v20.
+> Batch stable trong v20 là `effect`, `linkedSignal`, `toSignal`/`toObservable`.
 
 ## API mới
 
@@ -194,7 +193,7 @@ export class UserComponent implements OnInit, OnChanges {
 }
 ```
 
-### Sau Angular 20
+### Sau (dùng `input()` — đã stable trước v20)
 
 ```typescript
 @Component({

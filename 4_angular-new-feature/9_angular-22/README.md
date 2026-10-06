@@ -1,7 +1,7 @@
 # Angular 22
 
 ## Ngày phát hành
-Tháng 6/2025 (RC), ~Tháng 8/2025 (Stable)
+v21: 19/11/2025 (Stable) · v22: 03/06/2026 (Stable)
 
 ## Tổng quan
 
@@ -24,13 +24,13 @@ Cả `resource()` và `httpResource()` chuyển sang stable. Lỗi rò rỉ subs
 
 📄 [Chi tiết →](3_resource-httpresource-stable/README.md)
 
-### 4. WebMCP — MCP Chạy Trong Trình Duyệt
-Angular 22 cung cấp client WebMCP. Bạn có thể expose signals, models hoặc actions cho AI agent trực tiếp trong trình duyệt mà không cần glue phía server.
+### 4. WebMCP — MCP Chạy Trong Trình Duyệt (Experimental)
+Angular 22 cung cấp client WebMCP dạng **experimental** (không phải stable). Bạn có thể expose signals, models hoặc actions cho AI agent trực tiếp trong trình duyệt mà không cần glue phía server.
 
 📄 [Chi tiết →](4_webmcp/README.md)
 
-### 5. Tạo Service: `inject` và `injectAsync`
-`inject()` và `injectAsync()` cấp cao nhất (top-level) đơn giản hóa việc tạo service mà không cần constructor, giúp services gọn nhẹ hơn và dễ tree-shaking hơn.
+### 5. Tạo Service: `@Service` và `injectAsync`
+Mới trong v22 là decorator `@Service` (gọn hơn `@Injectable`) và helper `injectAsync()` (trả về `() => Promise<T>`, gọi `await this.exporter()`). `inject()` có từ v14, không phải mới.
 
 📄 [Chi tiết →](5_service-injectAsync/README.md)
 
@@ -39,30 +39,53 @@ Các child routes tự động kế thừa params của parent route mà không 
 
 📄 [Chi tiết →](6_router-params-inheritance/README.md)
 
-### 7. linkedSignal Có Phương Thức `.set()` Trực Tiếp
-`linkedSignal` có thêm phương thức `.set()` và `.update()` trực tiếp — không còn cách làm vòng vo qua `.asReadonly()`.
+### 7. linkedSignal: Option `set` Tùy Biến
+`linkedSignal` đã writable (`.set()`/`.update()`) từ trước. Mới trong v22 là option `set(value, rawSet)` để viết ngược về source of truth.
 
 📄 [Chi tiết →](7_linkedsignal-set/README.md)
 
-### 8. Comment Trong Template
-Angular 22 hỗ trợ comment theo kiểu HTML (`<!-- -->`) trong templates, hoạt động với tất cả control flow blocks.
+### 8. Comment Trong HTML Element
+`<!-- -->` luôn hợp lệ từ trước. Mới trong v22 là comment `//` và `/* */` ngay trong thẻ mở của element để document properties/bindings.
 
 📄 [Chi tiết →](8_template-comments/README.md)
 
 ### 9. Siết Chặt Bảo Mật (Security Hardening)
-Sanitization mặc định chặt chẽ hơn. Dùng `DomSanitizer.bypassSecurityTrust*` giờ kích hoạt cảnh báo dev và xử lý chặt chẽ hơn ở production.
+Theo changelog thật: sanitize `href` động trên SVG `<a>`, đồng bộ sanitization schema, chặn SSRF backslash URL, sửa rò credentials qua lệch URL resolution và sửa transfer-cache cache-key ambiguity.
 
 📄 [Chi tiết →](9_security-hardening/README.md)
 
 ### 10. Cải Thiện Compiler và Type-Safety
-Type checking chặt chẽ hơn, suy luận kiểu (type inference) cho signals tốt hơn, diagnostics template nâng cao và tích hợp TypeScript được cải thiện.
+Nổi bật: safe-navigation narrowing nullables và optional-chaining trả `undefined`, kèm diagnostics `nullishCoalescingNotNullable`/`optionalChainNotNullable` và NG8023.
 
 📄 [Chi tiết →](10_compiler-typesafety/README.md)
 
 ### 11. Language Service và DevTools
-Gỡ lỗi (debugging) nâng cao với trực quan hóa signal graph, profiling hiệu năng, autocomplete tốt hơn, diagnostics và hỗ trợ refactoring.
+Theo changelog thật: inlay hints trong template, Document Symbols cho templates và idle timeout cho `@defer` blocks.
 
 📄 [Chi tiết →](11_language-service-devtools/README.md)
+
+### 12. HttpClient: `FetchBackend` Thành Default
+`FetchBackend` thay `HttpXhrBackend` làm default `HttpBackend`. `withFetch()` nay deprecated (xóa an toàn). Muốn giữ upload progress thì dùng `provideHttpClient(withXhr())` vì Fetch không hỗ trợ upload progress. Option `reportProgress` deprecated, tách thành `reportUploadProgress` / `reportDownloadProgress`.
+
+```typescript
+// v22: không cần withFetch() nữa — Fetch đã là default
+provideHttpClient();
+
+// Muốn giữ hành vi cũ (upload progress):
+provideHttpClient(withXhr());
+```
+
+### 13. Router: Navigation API + `withComponentInputBinding` Options
+`withComponentInputBinding()` nhận thêm param `options`: `{ queryParams, unmatchedInputBehavior }`. Tắt bind queryParams khi tự quản lý query riêng; `unmatchedInputBehavior: 'undefinedIfStale'` tránh set `undefined` cho inputs chưa từng có trong router data.
+
+```typescript
+provideRouter(routes,
+  withComponentInputBinding({ queryParams: false }),
+);
+provideRouter(routes,
+  withComponentInputBinding({ unmatchedInputBehavior: 'undefinedIfStale' }),
+);
+```
 
 ## Bảng Tổng Kết
 
@@ -70,15 +93,17 @@ Gỡ lỗi (debugging) nâng cao với trực quan hóa signal graph, profiling 
 |---------|--------|------------|
 | OnPush Mặc định | ✅ Stable | Mặc định mới cho component |
 | Signal Forms | ✅ Stable | Không còn experimental |
-| resource/httpResource | ✅ Stable | Đã sửa rò rỉ subscription |
-| WebMCP | ✅ Mới | MCP client chạy trong trình duyệt |
-| inject/injectAsync | ✅ Mới | Service không cần constructor |
-| Params Inheritance | ✅ Mặc định | Tự động trong router |
-| linkedSignal .set() | ✅ Mới | Hỗ trợ ghi trực tiếp |
-| Template Comments | ✅ Mới | Hỗ trợ `<!-- -->` |
-| Security Hardening | ✅ Chặt hơn | Cảnh báo dev khi bypass |
-| Type Safety | ✅ Cải thiện | Mặc định chặt chẽ hơn |
-| Language Service | ✅ Cải thiện | Trực quan hóa signal |
+| resource/httpResource | ✅ Stable | `params` (đổi từ `request`), đã sửa rò rỉ subscription |
+| WebMCP | ⚠️ Experimental | MCP client chạy trong trình duyệt |
+| @Service/injectAsync | ✅ Mới (v22) | `@Service` + `injectAsync() => Promise`; `inject()` có từ v14 |
+| Params Inheritance | ✅ Mặc định | Tự động trong router (`emptyOnly` → `always`) |
+| linkedSignal `set` option | ✅ Mới (v22) | Custom `set(value, rawSet)`; `.set()` có từ trước |
+| Template Comments | ✅ Mới (v22) | `//` và `/* */` trong thẻ mở (`<!-- -->` có từ trước) |
+| Security Hardening | ✅ Chặt hơn | SVG href, SSRF backslash, transfer-cache, host bindings |
+| Type Safety | ✅ Cải thiện | Safe-navigation narrowing, optional-chaining `undefined` |
+| Language Service | ✅ Cải thiện | Inlay hints, Document Symbols, idle timeout defer |
+| FetchBackend | ✅ Default (v22) | `withFetch` deprecated; `reportUpload/DownloadProgress` |
+| Router input binding | ✅ Mới options | `queryParams`, `unmatchedInputBehavior` |
 
 ## Bài Học Chính
 

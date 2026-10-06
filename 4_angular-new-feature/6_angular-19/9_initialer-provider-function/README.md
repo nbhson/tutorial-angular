@@ -1,5 +1,7 @@
 # 9. Initializer Provider Functions
 
+> Ghi chú tên folder: `9_initialer-provider-function` thiếu chữ `i` (đúng phải là `9_initializer-provider-function`). Giữ nguyên tên để tránh gãy link, không rename.
+
 ## Mô tả
 
 Angular 19 giới thiệu các helper functions mới: `provideAppInitializer()`, `provideEnvironmentInitializer()`, và `providePlatformInitializer()` — thay thế cách dùng `APP_INITIALIZER`, `ENVIRONMENT_INITIALIZER`, và `PLATFORM_INITIALIZER` tokens truyền thống.
@@ -31,10 +33,18 @@ providers: [
 ## Cú pháp
 
 ```ts
-provideAppInitializer(fn: () => void | Promise<void>): Provider
-provideEnvironmentInitializer(fn: () => void): Provider
-providePlatformInitializer(fn: () => void): Provider
+// Signature đầy đủ — fn có thể sync hoặc async, nhận Injector context
+provideAppInitializer(fn: () => void | Promise<void>): EnvironmentProvider;
+provideEnvironmentInitializer(fn: () => void | Promise<void>): EnvironmentProvider;
+providePlatformInitializer(fn: () => void | Promise<void>): Provider;
 ```
+
+> `APP_INITIALIZER` (và 2 token còn lại) đã **deprecated** từ v19 — vẫn chạy (backward compatible) nhưng nên migrate sang `provide*Initializer()`. Dùng schematic tự động:
+> ```bash
+> ng generate @angular/core:cleanup-unused-imports
+> # và migration APP_INITIALIZER:
+> ng generate @angular/core:app-initializer-migration
+> ```
 
 ## Files trong project
 
@@ -126,9 +136,10 @@ providePlatformInitializer(() => {
 
 ## Lưu ý quan trọng
 
-- **Migration tool**: Angular 19 cung cấp migration command để convert code cũ sang format mới
-- **Backward compatible**: Tokens cũ (APP_INITIALIZER) vẫn hoạt động
+- **Migration tool**: Angular 19 cung cấp migration command để convert code cũ sang format mới (`ng generate @angular/core:app-initializer-migration`)
+- **Deprecated**: `APP_INITIALIZER` / `ENVIRONMENT_INITIALIZER` / `PLATFORM_INITIALIZER` tokens đã deprecated từ v19, vẫn hoạt động (backward compatible) nhưng không nên dùng cho code mới
 - **Execution order**: Platform → Environment → App
+- Tham khảo official: [Angular 19 Release Blog](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
 
 ## Reference
 

@@ -134,7 +134,7 @@ export class App {
   });
 
   protected onSubmit() {
-    if (this.personForm().invalid()) {
+    if (this.personForm().valid()) {
       console.log('Form submitted:', this.person());
     }
   }

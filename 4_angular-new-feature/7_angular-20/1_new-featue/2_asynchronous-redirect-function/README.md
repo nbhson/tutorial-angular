@@ -1,8 +1,13 @@
-# 2. Asynchronous Redirect Function (Angular 20)
+# 2. Asynchronous Redirect Function (mới v20 — #60863)
+
+> Đính chính: `redirectTo` dạng **sync function đã có từ trước**.
+> Mới trong v20 chỉ là **async** (`Promise<UrlTree|string>` | `Observable<UrlTree|string>`) — #60863.
+> `inject()` chỉ dùng được **bên trong injection context** của redirect function.
+> Nguồn: https://github.com/angular/angular/releases/tag/20.0.0
 
 ## Tổng quan
 
-Angular 20 giới thiệu **Asynchronous Redirect Function** — cho phép `redirectTo` trong route config chấp nhận một **hàm asynchronous** (trả về Observable), thay vì chỉ một string cố định. Đây là một upgrade lớn cho routing system, giúp xử lý **dynamic redirects** dựa trên runtime conditions (auth state, feature flags, user roles...) mà không cần_guard hay extra component.
+Angular 20 cho phép `redirectTo`/`RedirectFn` trả về **async** (`Promise`|`Observable`), giúp xử lý **dynamic redirects** dựa trên runtime conditions (auth state, feature flags, user roles...) mà không cần_guard hay extra component.
 
 ## API mới
 
@@ -20,15 +25,27 @@ Angular 20 giới thiệu **Asynchronous Redirect Function** — cho phép `redi
 }
 ```
 
+```typescript
+// v20: sync (đã có từ trước) + async (mới #60863)
+type RedirectFn = () =>
+  | string | UrlTree
+  | Promise<string | UrlTree>       // ← mới v20
+  | Observable<string | UrlTree>;   // ← mới v20
+```
+
+> Caveat: `inject(Router)` / `inject(Service)` chỉ hợp lệ vì redirect function
+> được gọi trong injection context của Router. Không gọi `inject()` ngoài function
+> hoặc sau `await` tách context.
+
 **Thay đổi so với trước:**
 
-| Trước (Angular < 20) | Sau (Angular 20) |
+| Trước (đã có sync fn) | Mới v20 (#60863) |
 |---|---|
-| `redirectTo: 'login'` (string) | `redirectTo: () => Observable<UrlTree>` (function) |
+| `redirectTo: 'login'` (string) + sync `() => string \| UrlTree` | `redirectTo: () => Promise \| Observable<string \| UrlTree>` |
 
 ## Tại sao cần feature này?
 
-Trước Angular 20, `redirectTo` chỉ nhận một **string cố định**. Nếu bạn muốn redirect động dựa trên auth state hoặc API response, bạn phải:
+Trước v20, `redirectTo` đã nhận **string cố định + sync function**. Nếu bạn muốn redirect động dựa trên auth state hoặc API response, bạn phải:
 
 1. Tạo **Guard** với `canActivate` → phức tạp, nhiều boilerplate
 2. Tạo **Component trung gian** chỉ để redirect → waste
@@ -156,13 +173,13 @@ Router navigate theo UrlTree
 
 ## So sánh trước và sau Angular 20
 
-### Trước Angular 20: Phải dùng Guard
+### Trước v20: chỉ redirect cứng + sync fn
 
 ```typescript
-// routes.ts - chỉ redirect cứng
+// routes.ts - redirect cứng / sync fn (đã có từ trước)
 {
   path: 'dashboard',
-  redirectTo: 'login',  // Luôn redirect到 login
+  redirectTo: 'login',
   pathMatch: 'full'
 }
 
@@ -173,7 +190,7 @@ Router navigate theo UrlTree
 }
 ```
 
-### Sau Angular 20: Redirect function
+### Mới v20 (#60863): async redirect + Promise ví dụ
 
 ```typescript
 {
@@ -191,9 +208,22 @@ Router navigate theo UrlTree
 **Lợi ích:**
 - ✅ Không cần Guard cho simple redirects
 - ✅ Không cần Component trung gian
-- ✅ Inject được dependencies qua `inject()`
-- ✅ Hỗ trợ Observable (reactive)
+- ✅ `inject()` được (trong injection context — không gọi sau `await` tách context)
+- ✅ Hỗ trợ `Promise` và `Observable` (mới v20 #60863)
 - ✅ Code gọn hơn, dễ maintain
+
+### Ví dụ Promise (mới v20)
+
+```typescript
+{
+  path: 'dashboard',
+  redirectTo: async () => {
+    const router = inject(Router); // OK: sync đầu function
+    const allowed = await isAllowed(); // Promise
+    return allowed ? router.createUrlTree(['/user']) : router.createUrlTree(['/login']);
+  },
+}
+```
 
 ## Các use case phổ biến
 

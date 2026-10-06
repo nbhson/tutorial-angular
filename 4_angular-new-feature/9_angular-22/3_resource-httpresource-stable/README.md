@@ -67,9 +67,9 @@ export class PostsComponent {
   authorId = signal(1);
   
   posts = resource({
-    request: () => ({ authorId: this.authorId() }),
-    loader: async ({ request }) => {
-      const response = await fetch(`/api/posts?author=${request.authorId}`);
+    params: () => ({ authorId: this.authorId() }),
+    loader: async ({ params }) => {
+      const response = await fetch(`/api/posts?author=${params.authorId}`);
       return response.json();
     }
   });
@@ -99,8 +99,8 @@ export class ProductComponent {
   productId = signal(1);
   
   product = rxResource({
-    request: () => ({ id: this.productId() }),
-    loader: ({ request }) => this.http.get<Product>(`/api/products/${request.id}`)
+    params: () => ({ id: this.productId() }),
+    loader: ({ params }) => this.http.get<Product>(`/api/products/${params.id}`)
   });
 }
 ```
@@ -142,7 +142,7 @@ export class DataComponent {
 | `hasValue()` | Trả về `true` nếu có giá trị |
 | `error()` | Trả về lỗi nếu có |
 | `reload()` | Kích hoạt fetch lại |
-| `cancel()` | Hủy request đang chờ |
+| `cancel()` | Hủy params đang chờ |
 
 ## Sửa Lỗi trong Angular 22
 

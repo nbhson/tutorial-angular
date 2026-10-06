@@ -26,8 +26,10 @@ export class AppComponent implements OnInit {
 
   favoriteColorId = linkedSignal<Color[], number | null>({
     source: this.colorOptions,
-    computation: (source, previous) => {
-      if (previous?.value) {
+    computation: (source, previous: { source: Color[]; value: number | null }) => {
+      // previous có shape { source, value } — đọc previous.value (check previous tồn tại trước)
+      // Không dùng `previous?.value` làm truthy-check vì sẽ bỏ qua giá trị falsy hợp lệ như 0
+      if (previous && previous.value !== null) {
         return source.some(color => color.id === previous.value) ? previous.value : null;
       }
       return null;

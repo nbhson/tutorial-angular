@@ -1,4 +1,9 @@
-# 5. `Injector.destroy()` (Angular 20)
+# 5. `Injector.destroy()` (mới v20 — #60054, `DestroyableInjector`)
+
+> Nguồn: https://angular.dev/api/core/Injector — `Injector.create()` với
+> `parent: EnvironmentInjector` tạo ra injector có `destroy()`.
+> Sau `destroy()`: injector bị disposed, **không reuse**, mọi `get()` sau đó ném lỗi.
+> `ngOnDestroy` của các service đã khởi tạo được gọi tự động.
 
 ## Tổng quan
 
@@ -7,19 +12,20 @@ Angular 20 giới thiệu `Injector.destroy()` — cho phép **huỷ bỏ inject
 ## API mới
 
 ```typescript
+import { Injector, EnvironmentInjector, inject } from '@angular/core';
+
 const injector = Injector.create({
   providers: [
     { provide: DataService, deps: [] },
-    { provide: LoggerService, deps: [] },
   ],
-  parent: this.parentInjector
+  parent: inject(EnvironmentInjector) // parent phải là EnvironmentInjector
 });
 
-// Sử dụng
 const dataService = injector.get(DataService);
 
-// Huỷ bỏ
-injector.destroy(); // Tự động gọi ngOnDestroy cho tất cả services
+// Huỷ bỏ — sau dòng này KHÔNG reuse injector:
+injector.destroy(); // Tự động gọi ngOnDestroy cho tất cả services đã tạo
+// injector.get(DataService); // ❌ Error: injector đã disposed
 ```
 
 ## Tại sao cần feature này?

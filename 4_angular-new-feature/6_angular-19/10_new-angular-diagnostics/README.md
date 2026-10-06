@@ -1,4 +1,6 @@
-# 10. Angular Diagnostics — Unused Standalone Imports
+# 11. Angular Diagnostics — Unused Standalone Imports
+
+> Ghi chú đánh số: folder đang tên `10_new-angular-diagnostics` trùng số với `10_typescript-isolated-modules` — đúng ra nên là `11_` để tránh trùng thứ tự. Giữ nguyên tên để tránh gãy link.
 
 ## Mô tả
 
@@ -51,7 +53,7 @@ Hiển thị warning nhưng **KHÔNG** fail compilation. Developers có thể th
 "unusedStandaloneImports": "error"
 ```
 
-Fail整个 compilation nếu có unused imports. **Strict mode** — buộc developers phải clean up.
+Fail toàn bộ compilation nếu có unused imports. **Strict mode** — buộc developers phải clean up.
 
 ### `suppress`
 
@@ -110,6 +112,7 @@ Angular 19 hỗ trợ nhiều diagnostics khác:
     "extendedDiagnostics": {
       "checks": {
         "unusedStandaloneImports": "warning",
+        "uninvokedFunction": "warning",
         "invalidBananaInTemplate": "error",
         "missingControlFlowDirective": "warning",
         "missingNgForTrackBy": "warning",
@@ -118,6 +121,48 @@ Angular 19 hỗ trợ nhiều diagnostics khác:
     }
   }
 }
+```
+
+### `uninvokedFunction` (mới v19)
+
+Phát hiện function được tham chiếu mà không invoke trong template — lỗi hay gặp khi quên `()`:
+
+```html
+<!-- ❌ Quên gọi hàm — bind function object thay vì kết quả -->
+<p>{{ getName }}</p>
+
+<!-- ✅ Đúng -->
+<p>{{ getName() }}</p>
+```
+
+```json
+"uninvokedFunction": "warning"
+```
+
+### `strictStandalone` (mới v19)
+
+Enforce mọi component/directive/pipe đều khai báo `standalone` explicit (hoặc tuân thủ standalone-by-default), bắt lỗi khi còn component non-standalone lẫn vào graph:
+
+```json
+{
+  "angularCompilerOptions": {
+    "strictStandalone": true
+  }
+}
+```
+
+Kết hợp với schematic migration standalone:
+
+```bash
+ng generate @angular/core:standalone-migration
+```
+
+### Schematic dọn unused imports
+
+Sau khi bật `unusedStandaloneImports: warning/error`, dùng schematic để auto-cleanup:
+
+```bash
+ng generate @angular/core:cleanup-unused-imports
 ```
 
 ## Use Cases phổ biến
@@ -142,10 +187,10 @@ Angular 19 hỗ trợ nhiều diagnostics khác:
 
 ## Khi nào dùng?
 
-- **New projects**:启用 `warning` ngay từ đầu
-- **Existing projects**:Enable `warning` trước, fix dần, rồi chuyển sang `error`
-- **CI/CD**:Set `error` để enforce code quality
-- **Performance critical**:Giảm bundle size bằng cách remove unused imports
+- **New projects**: bật `warning` ngay từ đầu
+- **Existing projects**: bật `warning` trước, fix dần, rồi chuyển sang `error`
+- **CI/CD**: set `error` để enforce code quality
+- **Performance critical**: giảm bundle size bằng cách remove unused imports
 
 ## Reference
 

@@ -4,6 +4,8 @@
 
 Angular 17 giới thiệu hai lifecycle hooks mới — `afterRender` và `afterNextRender` — giúp truy cập DOM sau khi render một cách an toàn. Đây là sự thay thế hiện đại cho `ngAfterViewInit`, hỗ trợ phases (giai đoạn) để tách biệt đọc/ghi DOM, tránh layout thrashing.
 
+> Note version: trong v17 API chỉ là `afterRender(cb, {phase})` / `afterNextRender(cb)` — `cb` nhận `AfterRenderRef` để cleanup bằng `.destroy()`. Object spec `{write, read, mixedReadWrite, earlyRead}` là từ v18.1+. `viewChild.required()` là v17.2 preview / v18 stable (v17.0 dùng `viewChild()` + optional check). Từ v20 `afterRender` được rename thành `afterEveryRender` (giữ alias).
+
 ## Cấu trúc files
 
 ```
@@ -24,14 +26,13 @@ Angular 17 giới thiệu hai lifecycle hooks mới — `afterRender` và `after
 
 ## Chi tiết từng file
 
-### `src/app/app.component.ts` — AfterRender với Phases
+### `src/app/app.component.ts` — AfterRender với Phases (v17 style)
 
-Demonstrates `afterRender` với 3 phases: `write`, `mixedReadWrite`, `read`:
+Demonstrates `afterRender(cb, {phase})` và `afterNextRender(cb)` — object spec `{write, read, ...}` là từ v18.1+, không dùng cho ví dụ v17:
 
 ```ts
-import { afterRender, Component, computed, ElementRef, signal, viewChild } from '@angular/core';
+import { afterNextRender, afterRender, Component, computed, ElementRef, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { animationFrameScheduler, interval, Subscription, take } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -40,51 +41,39 @@ import { animationFrameScheduler, interval, Subscription, take } from 'rxjs';
   imports: [FormsModule],
 })
 export class AppComponent {
-  secretWord = signal('angular18');
+  secretWord = signal('angular17');
   word = signal('');
   success = computed(() => this.secretWord() === this.word());
+  // Note: viewChild.required() là v17.2 preview / v18 stable — v17.0 dùng viewChild() + optional check
   wordBlock = viewChild<ElementRef>('wordBlock');
-  subscriptions: Subscription[] = [];
 
   constructor() {
-    afterRender({
-      write: () => {
-        // Ghi vào DOM — thay đổi background color
-        this.wordBlock()!.nativeElement.style.backgroundColor = this.success()
-          ? 'green'
-          : 'red';
-
-        // Animation với RxJS
-        this.subscriptions.push(
-          interval(0, animationFrameScheduler)
-            .pipe(take(10))
-            .subscribe({
-              next: (percentage) => {
-                this.wordBlock()!.nativeElement.style.width = percentage + '%';
-              },
-              complete: () => {
-                this.subscriptions.forEach((subs) => subs.unsubscribe());
-              }
-            })
-        );
-      },
-      read: (data) => {
-        // Đọc DOM sau khi ghi
-        console.log(data);
-      },
-      mixedReadWrite: (data) => {
-        // Đọc và ghi xen kẽ
-        console.log(data);
-      },
+    // Chạy MỘT LẦN sau render đầu tiên
+    afterNextRender(() => {
+      console.log('First render done:', this.wordBlock()?.nativeElement);
     });
+
+    // Chạy sau MỖI render cycle (v17 style: callback + options.phase)
+    // Giữ AfterRenderRef để .destroy() khi cleanup — tránh leak
+    // (không gọi interval(...).subscribe() trực tiếp trong write mà không cleanup)
+    const ref = afterRender(
+      () => {
+        const el = this.wordBlock()?.nativeElement;
+        if (el) {
+          el.style.backgroundColor = this.success() ? 'green' : 'red';
+        }
+      },
+      { phase: 'write' }
+    );
+    // Khi không cần nữa: ref.destroy();
   }
 }
 ```
 
 **Giải thích:**
-- `write` phase — Ghi vào DOM (thay đổi style, thêm/xóa elements)
-- `read` phase — Đọc DOM sau khi ghi (lấy measurements)
-- `mixedReadWrite` phase — Đọc và ghi xen kẽ (sử dụng thận trọng)
+- `afterNextRender(cb)` — Chạy 1 lần sau render đầu tiên
+- `afterRender(cb, {phase})` — Ghi vào DOM (phase `write`) / đọc DOM (phase `read`, `earlyRead`, `mixedReadWrite`)
+- Luôn giữ `AfterRenderRef` để `.destroy()` khi cleanup
 - Thứ tự thực thi: `earlyRead` → `write` → `mixedReadWrite` → `read`
 
 ### `src/app/app.component.html` — Template Demo
@@ -93,7 +82,7 @@ Template demo minh họa input với visual feedback qua afterRender:
 
 ```html
 <h1 style="margin-left: 10px;">
-    Angular v18.1.0-next.2: afterNextRender & afterRender new Design
+    Angular v17: afterRender & afterNextRender
 </h1>
 
 <div class="word-block" #wordBlock>
@@ -163,46 +152,33 @@ Thứ tự thực thi: earlyRead → write → mixedReadWrite → read
 | `write` | Ghi vào DOM, nhưng DOM chưa hoàn tất |
 | `read` | ✅ DOM đã render xong, **an toàn để đọc** (measurements, positions) |
 
-### Ví dụ thực tế
+### Ví dụ thực tế (v17: callback + `options.phase` — object spec là v18.1+)
 
 ```ts
 constructor() {
-  afterRender({
-    earlyRead: () => {
-      // Đọc kích thước TRƯỚC KHI thay đổi
-      return this.element().nativeElement.offsetHeight;
-    },
-    write: (oldHeight) => {
-      // Ghi thay đổi vào DOM
-      this.element().nativeElement.style.height = oldHeight * 2 + 'px';
-    },
-    read: (newHeight) => {
-      // DOM đã render xong → an toàn đọc kết quả
-      console.log('New height:', newHeight);
-      // Có thể dùng IntersectionObserver, getBoundingClientRect()...
-    },
-  });
+  // v17: mỗi phase là một afterRender riêng
+  afterRender(() => {
+    // Đọc kích thước TRƯỚC KHI thay đổi
+    console.log(this.element()?.nativeElement.offsetHeight);
+  }, { phase: 'earlyRead' });
+
+  afterRender(() => {
+    // Ghi thay đổi vào DOM
+    const el = this.element()?.nativeElement;
+    if (el) el.style.height = '100px';
+  }, { phase: 'write' });
+
+  afterRender(() => {
+    // DOM đã render xong → an toàn đọc kết quả
+    // Có thể dùng IntersectionObserver, getBoundingClientRect()...
+    console.log(this.element()?.nativeElement.getBoundingClientRect());
+  }, { phase: 'read' });
 }
 ```
 
-### Parameter Passing Between Phases
+### Parameter Passing Between Phases (v18.1+ object spec — chỉ để tham khảo)
 
-```ts
-afterRender({
-  earlyRead: () => {
-    // Không nhận tham số từ phase trước
-    return this.measureElement();
-  },
-  write: (measurement) => {
-    // Nhận return value từ earlyRead
-    this.applyStyles(measurement);
-  },
-  read: (previousResult) => {
-    // Nhận return value từ write
-    return this.verifyUpdate();
-  },
-});
-```
+> Trong v17 không có parameter passing giữa phases vì mỗi `afterRender(cb, {phase})` là độc lập. Từ v18.1+ object spec `afterRender({earlyRead, write, read})` mới cho phép return value của phase trước truyền vào phase sau.
 
 ## Use Cases thực tế
 
@@ -231,15 +207,15 @@ constructor() {
 }
 ```
 
-### 3. Dynamic Styling với Signals
+### 3. Dynamic Styling với Signals (v17 style)
 
 ```ts
-afterRender({
-  write: () => {
-    // React to signal changes và update DOM
-    this.elementRef().nativeElement.style.width = this.width() + 'px';
-  }
-});
+const ref = afterRender(() => {
+  // React to signal changes và update DOM
+  const el = this.elementRef()?.nativeElement;
+  if (el) el.style.width = this.width() + 'px';
+}, { phase: 'write' });
+// Cleanup: ref.destroy();
 ```
 
 ## Custom Inject Function
@@ -257,8 +233,10 @@ function afterNextRenderInit(fn: () => void) {
 1. **Chỉ dùng trong injection context** — Constructor hoặc field initializer
 2. **Không hoạt động trên SSR** — Chỉ chạy trên client-side
 3. **`afterNextRender`: chạy 1 lần** — Lý tưởng cho third-party library init
-4. **`afterRender`: chạy mỗi render cycle** — Dùng thận trọng vì performance
-5. **Tránh layout thrashing** — Đọc trước, ghi sau trong các phases riêng
+4. **`afterRender`: chạy mỗi render cycle** — Dùng thận trọng vì performance, luôn giữ `AfterRenderRef` để `.destroy()` khi cleanup (tránh leak `interval().subscribe()` trong callback)
+5. **Tránh layout thrashing** — Đọc trước, ghi sau trong các phases riêng (v17: qua `options.phase`)
+6. **Object spec `afterRender({write, read, ...})` là v18.1+**, không dùng cho ví dụ v17
+7. **Từ v20 `afterRender` rename thành `afterEveryRender`** (giữ alias `afterRender`)
 
 ## Cách sử dụng
 

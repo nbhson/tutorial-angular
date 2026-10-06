@@ -1,28 +1,22 @@
-# 1. Zoneless Change Detection (Angular 20)
+# 1. Zoneless Change Detection (v20 Developer Preview — đã hiệu chỉnh)
 
-## Tổng quan
+> Đính chính: API đúng là **`provideZonelessChangeDetection()`**
+> (KHÔNG có `provideExperimentalZonelessChangeDetection`).
+> v20 là **Developer Preview** + thêm **`provideBrowserGlobalErrorListeners()`** (#60704);
+> stable 20.2, default 21.
 
-Angular 20 chính thức hỗ trợ **Zoneless Change Detection** — bỏ hoàn toàn Zone.js, sử dụng **Signals** để tự động phát hiện thay đổi. Đây là bước tiến lớn nhất trong rendering engine của Angular, giảm bundle size và improve performance đáng kể.
-
-## API mới
+## API đúng
 
 ```typescript
-// bootstrapApplication không cần Zone.js
-bootstrapApplication(AppComponent, {
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideBrowserGlobalErrorListeners } from '@angular/core';
+
+bootstrapApplication(App, {
   providers: [
-    provideExperimentalZonelessChangeDetection()
+    provideZonelessChangeDetection(),      // v20 Developer Preview
+    provideBrowserGlobalErrorListeners(),  // #60704 — xử lý global errors khi không có Zone
   ]
 });
-```
-
-**Hoặc trong app.config.ts:**
-
-```typescript
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideExperimentalZonelessChangeDetection()
-  ]
-};
 ```
 
 ## Tại sao cần feature này?
@@ -43,16 +37,17 @@ Signals thay thế Zone.js bằng cách:
 
 ## Ví dụ thực tế
 
-### 1. Basic Setup (`main.ts`)
+### 1. Basic Setup (`main.ts`) — đúng
 
 ```typescript
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { App } from './app/app';
 
 bootstrapApplication(App, {
   providers: [
-    provideExperimentalZonelessChangeDetection()
+    provideZonelessChangeDetection(),
+    provideBrowserGlobalErrorListeners()
   ]
 }).catch(err => console.error(err));
 ```
@@ -120,10 +115,10 @@ export class LoggerComponent {
 }
 ```
 
-### 4. HTTP Data Fetching
+### 4. HTTP Data Fetching — `resource()` vẫn experimental trong v20
 
 ```typescript
-import { Component, resource } from '@angular/core';
+import { Component, resource } from '@angular/core'; // experimental trong v20, stable v22
 
 @Component({
   selector: 'app-users',
@@ -140,14 +135,20 @@ export class UsersComponent {
   userId = signal(1);
 
   users = resource({
-    request: this.userId,
-    loader: async ({ request: userId }) => {
-      const response = await fetch(`/api/users/${userId}`);
+    params: () => ({ userId: this.userId() }), // đúng: params (không phải request)
+    loader: async ({ params }) => {
+      const response = await fetch(`/api/users/${params.userId}`);
       return response.json();
     }
   });
 }
 ```
+
+## Trạng thái version
+
+| v20 | 20.2 | 21 |
+|---|---|---|
+| Developer Preview + `provideBrowserGlobalErrorListeners` (#60704) | Stable | Default |
 
 ## So sánh trước và sau Angular 20
 
@@ -265,17 +266,15 @@ effect(() => {
 });
 ```
 
-### `resource()`
+### `resource()` — experimental trong v20
 
 ```typescript
 const data = resource({
-  request: someSignal,
-  loader: async ({ request }) => {
-    return await fetchData(request);
+  params: () => ({ id: someSignal() }), // đúng: params function
+  loader: async ({ params }) => {
+    return await fetchData(params.id);
   }
 });
-data.value();      // Giá trị
-data.isLoading();  // Trạng thái loading
 ```
 
 ## Best practices

@@ -117,7 +117,6 @@ const routes: Routes = [
 ## Migration
 
 Không cần thay đổi gì cho các app hiện có. Nếu trước đây bạn đặt `paramsInheritanceStrategy: 'always'`, giờ bạn có thể bỏ nó:
-
 ```typescript
 // Trước Angular 22
 {
@@ -133,5 +132,35 @@ Không cần thay đổi gì cho các app hiện có. Nếu trước đây bạn
 }
 ```
 
+## Mới v22: `withComponentInputBinding({ queryParams, unmatchedInputBehavior })`
+
+`withComponentInputBinding()` nay nhận thêm param `options`:
+
+```typescript
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+
+// Tắt bind queryParams khi tự quản lý query riêng
+provideRouter(routes, withComponentInputBinding({ queryParams: false }));
+
+// Tránh set undefined cho inputs chưa từng có trong router data
+provideRouter(routes,
+  withComponentInputBinding({ unmatchedInputBehavior: 'undefinedIfStale' }),
+);
+
+// Kết hợp cả hai
+provideRouter(routes,
+  withComponentInputBinding({
+    queryParams: false,
+    unmatchedInputBehavior: 'undefinedIfStale',
+  }),
+);
+```
+
+| Option | Giá trị | Mô tả |
+|--------|---------|-------|
+| `queryParams` | `true` (default) / `false` | Có bind query params vào component inputs không |
+| `unmatchedInputBehavior` | `'alwaysUndefined'` (default) / `'undefinedIfStale'` | `'alwaysUndefined'` set `undefined` khi không match để tránh stale; `'undefinedIfStale'` chỉ set `undefined` nếu input đó từng có trong router data |
+
 ## Tham khảo
+- [Angular v22 changelog — Add `options` for `withComponentInputBinding`, `unmatchedInputBehavior`, default `paramsInheritanceStrategy: 'always'`](https://github.com/angular/angular/releases/tag/v22.0.0)
 - [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)

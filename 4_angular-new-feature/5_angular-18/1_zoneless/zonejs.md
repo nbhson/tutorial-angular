@@ -1,5 +1,9 @@
 # Tại sao angular lại tự động run detection trên (click) mà addEventListener thì lại không?
 
+> Phạm vi bài này: **Zone app (có zone.js, dùng `NgZone.run`)** vs **zoneless app (v18 experimental, không có zone.js)**.
+> - **Zone app**: `NgZone.run()` / `ChangeDetectorRef` đều trigger được change detection; `(click)` binding được Zone.js patch nên auto-detect, còn native `addEventListener` thì không.
+> - **Zoneless app**: không có `NgZone` — chỉ các triggers của `ChangeDetectionScheduler` mới schedule được (bound listeners trong template, signal update, `markForCheck()`/`detectChanges()`, `setInput()`, attach/remove view, render hook). `NgZone.run()` không còn ý nghĩa, phải dùng `ChangeDetectorRef` hoặc Signals.
+
 Đây là một câu hỏi rất hay về cơ chế hoạt động bên trong của Angular. 
 
 ## ngZone

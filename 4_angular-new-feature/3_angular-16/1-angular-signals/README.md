@@ -43,61 +43,69 @@ Signal được tạo từ signal khác. Tự động cập nhật khi signal ng
 
 ```ts
 counter = signal(0);
+multiplier = signal(10);
 derivedCounter = computed(() => {
-  return this.counter() * 10;
+  return this.counter() * this.multiplier();
 });
 ```
 
 **Cơ chế hoạt động:**
 1. Khi tạo computed, function được gọi 1 lần để lấy initial value
-2. Angular theo dõi các signal getter function nào được gọi bên trong computed
-3. Khi signal nguồn thay đổi → computed signal tự động cập nhật
+2. Angular theo dõi các signal nào được đọc (gọi dạng `counter()`) bên trong computed để xác định dependency
+3. Khi signal nguồn thay đổi → computed signal tự động cập nhật (lazy - chỉ tính lại khi có nơi đọc)
 
-**Lưu ý quan trọng:**
+**Lưu ý quan trọng - dependencies là động:**
 ```ts
-// ❌ SAI - dependency bị phá vỡ khi multiplier = 0
+counter = signal(0);
+multiplier = signal(5);
+
+// ❌ SAI - dependency bị mất khi multiplier() < 10 vì counter() không được gọi
 derivedCounter = computed(() => {
-  if (this.multiplier < 10) return 0;
-  return this.counter() * this.multiplier;  // counter() không được gọi!
+  if (this.multiplier() < 10) return 0;
+  return this.counter() * this.multiplier();  // counter() không được gọi ở nhánh này!
 });
 
-// ✅ ĐÚNG - luôn gọi signal nguồn trong mọi nhánh
+// ✅ ĐÚNG - luôn đọc signal nguồn trong mọi nhánh nếu muốn giữ dependency
 derivedCounter = computed(() => {
-  if (this.counter() === 0) return 0;
-  return this.counter() * this.multiplier;
+  const count = this.counter();
+  if (this.multiplier() < 10) return 0;
+  return count * this.multiplier();
 });
 ```
 
-**Dependencies là động** - được xác định lại mỗi khi computed function chạy lại.
+**Dependencies là động** - được xác định lại mỗi khi computed function chạy lại. Chỉ signal nào thực sự được đọc ở lần chạy đó mới là dependency.
 
 ## untracked() - Đọc không tạo dependency
 
 ```ts
 derivedCounter = computed(() => {
-  return untracked(this.counter) * 10;  // Không tạo dependency
+  return untracked(() => this.counter()) * 10;  // Đọc counter nhưng không tạo dependency
 });
 ```
 
+> `untracked()` nhận vào một function, mọi signal đọc bên trong function đó đều không bị track làm dependency.
+
 ## Effect API
 
-Effect phát hiện signal thay đổi để thực hiện side effects (logging, localStorage, API calls...):
+Effect dùng cho side effects (logging, localStorage, API calls...). Effect tự động theo dõi các signal được đọc bên trong và chạy lại khi chúng thay đổi:
 
 ```ts
 counter = signal(0);
 derivedCounter = computed(() => this.counter() * 10);
 
-effect = effect(() => {
+effect(() => {
   const currentCount = this.counter();
   const derived = this.derivedCounter();
   console.log(`values: ${currentCount} ${derived}`);
 });
 ```
 
-**Quy tắc:**
-- Effect chạy ít nhất 1 lần khi được khai báo
-- Effect chạy **sau** computed
-- Nếu computed không chạy → effect không chạy
-- Dependencies được xác định động
+**Quy tắc theo official:**
+- Effect theo dõi **động** các signal được đọc bên trong và chạy lại khi bất kỳ dependency nào thay đổi.
+- Effect chạy **ít nhất 1 lần** khi khởi tạo.
+- Thời điểm chạy do framework schedule (không đồng bộ ngay sau `set()`), nên chỉ dùng effect cho side-effect, không dùng để tạo derived value hay đồng bộ state.
+- Effect phải được tạo trong **injection context** (vd: field initializer, constructor của component/directive/service). Nếu tạo ở nơi khác phải truyền `Injector` qua option `{ injector: ... }`.
+- Mặc định effect tự hủy khi context (component/directive) bị destroy. Option `{ manualCleanup: true }` chỉ tồn tại trong giai đoạn v16 developer preview - từ v17 phải tạo effect trong injection context để tự cleanup, hoặc truyền `injector` tường minh nếu tạo ở nơi khác.
 
 ### Cơ chế Dependency Tracking trong Effect
 
@@ -146,32 +154,39 @@ Gọi .set()/.update() = GHI   = Không track (không tạo dependency)
 
 **Cleanup:**
 ```ts
-// Manual cleanup
-const effectRef = effect(() => {
-  console.log(this.counter());
-}, { manualCleanup: true });
+// Tạo effect trong injection context (field/constructor) - tự cleanup khi destroy
+export class CounterComponent {
+  constructor() {
+    effect(() => {
+      console.log(this.counter());
+    });  // ✅ Tự destroy theo component, không cần manualCleanup
+  }
+}
 
-effectRef.destroy();  // Destroy manually
-
-// onCleanup callback
+// onCleanup callback - dọn tài nguyên mỗi lần effect chạy lại hoặc bị destroy
 effect((onCleanup) => {
   const subscription = this.dataService.getData().subscribe();
   onCleanup(() => {
-    subscription.unsubscribe();  // Cleanup khi effect destroyed
+    subscription.unsubscribe();  // Cleanup khi effect chạy lại hoặc destroyed
   });
 });
 ```
 
+> Lưu ý: `{ manualCleanup: true }` chỉ tồn tại ở v16 developer preview. Cách đúng từ v16 stable trở đi là tạo effect trong injection context để framework tự cleanup, hoặc truyền `injector` tường minh nếu cần.
+
 ## Equality Check
 
-Signal chỉ emit khi giá trị mới **khác** giá trị cũ (=== comparison):
+Signal mặc định dùng `===` (object identity) để so sánh (`equal` mặc định là `defaultEquals`). Quy trình 2-phase:
+
+1. Khi `set()`/`update()` với giá trị mới, signal so sánh với giá trị cũ bằng hàm `equal`.
+2. Nếu `equal(a, b) === true` → không emit, computed/effect/template phụ thuộc sẽ không chạy lại.
 
 ```ts
-// Object signal - === luôn khác dù data giống nhau
+// Object signal - === luôn khác vì khác reference dù data giống nhau
 object = signal({ id: 1, title: "Angular" });
 
-// Click Update nhiều lần → computed chạy lại mỗi lần (wasteful!)
-this.object.set({ id: 1, title: "Angular" });  // Same data!
+// Click Update nhiều lần → computed/effect chạy lại mỗi lần (wasteful!)
+this.object.set({ id: 1, title: "Angular" });  // Same data nhưng khác reference!
 
 // Giải pháp - custom equality function
 object = signal(
@@ -197,19 +212,19 @@ this.list.update(prev => [...prev, "Again"]);
 this.object.update(prev => ({ ...prev, title: "New Title" }));
 ```
 
-## `mutate()` - Deprecated ❌
+## `mutate()` - Có ở v16, bị xóa ở v17 ❌
 
-> `mutate()` **đã bị xóa** từ Angular 16 stable. Nó chỉ tồn tại trong giai đoạn Developer Preview.
+> `mutate()` **vẫn tồn tại trong Angular 16** (developer preview). Nó chỉ bị **xóa từ Angular 17** (PR #51821). Từ v17 trở đi chỉ dùng `update()` với immutable pattern.
 
 ```ts
-// ❌ DEPRECATED - mutate() - KHÔNG dùng **nữa**
+// ⚠️ mutate() - vẫn dùng được ở v16 nhưng KHÔNG nên dùng nữa (bị xóa ở v17)
 qtyAvailable = signal([1, 2, 3, 4, 5]);
 
 addQuantity() {
   this.qtyAvailable.mutate(v => v.push(v[v.length - 1] + 1));
 }
-// mutate() cho phép thay đổi array/object bên trong signal
-// NHƯNG không trigger change detection đúng cách → bị xóa
+// mutate() thay đổi array/object bên trong signal trên cùng reference
+// → phá vỡ immutability, khó detect thay đổi → bị xóa ở v17 (PR #51821)
 ```
 
 **Tại sao mutate bị xóa?**
@@ -334,10 +349,11 @@ export class CounterService {
 
 // component.ts
 export class AppComponent {
-  counter = inject(CounterService).counter;
+  private counterService = inject(CounterService);
+  counter = this.counterService.counter;
 
   increment() {
-    inject(CounterService).incrementCounter();
+    this.counterService.incrementCounter();
   }
 }
 ```
@@ -383,8 +399,12 @@ increment() {
 }
 
 // ✅ Cách mới (Signals) - TỰ ĐỘNG update, không cần markForCheck()
-increment() {
-  inject(CounterService).incrementCounter();  // ← Done! Tự update
+export class AppComponent {
+  private counterService = inject(CounterService);
+
+  increment() {
+    this.counterService.incrementCounter();  // ← Done! Tự update
+  }
 }
 ```
 
@@ -471,6 +491,36 @@ effect(() => { console.log(double()); })  ← Chạy side effect
 3. **Effect cho side effects** – Không dùng computed cho side effects
 4. **Signals + OnPush** – Kết hợp để tối ưu performance
 
+## RxJS Interop - toSignal / takeUntilDestroyed (Developer Preview ở v16)
+
+```ts
+import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+// Observable → Signal
+export class UserComponent {
+  private userService = inject(UserService);
+
+  // ❌ RxJS thuần - phải subscribe/unsubscribe thủ công
+  // users$ = this.userService.getUsers();
+
+  // ✅ toSignal - tự unsubscribe theo DestroyRef
+  users = toSignal(this.userService.getUsers(), { initialValue: [] });
+  // template: @for (u of users(); track u.id) { ... }
+
+  constructor() {
+    // ✅ takeUntilDestroyed - thay cho takeUntil/ngOnDestroy boilerplate
+    this.userService.getUsers()
+      .pipe(takeUntilDestroyed())
+      .subscribe(users => console.log(users));
+  }
+}
+```
+
+> `toSignal()` / `toObservable()` / `takeUntilDestroyed()` nằm trong `@angular/core/rxjs-interop`, ở v16 vẫn là developer preview. `takeUntilDestroyed()` phải gọi trong injection context (constructor/field initializer), hoặc truyền `DestroyRef` tường minh.
+
 ## Reference
 
+- https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d
+- https://angular.dev/guide/signals
+- https://angular.dev/guide/rxjs-interop
 - https://blog.angular-university.io/angular-signals/

@@ -2,7 +2,9 @@
 
 ## Tổng quan
 
-Angular 18 giới thiệu property **`events`** mới trên `FormControl`, cho phép developer **subscribe vào stream events** để theo dõi các thay đổi state của form control như value changes, status changes, touch state, và pristine status. Đây là một cách declarative hơn so với việc sử dụng `valueChanges` hoặc `statusChanges` riêng lẻ.
+Angular 18 giới thiệu property **`events`** mới trên `AbstractControl` (nên cả `FormControl`, `FormGroup`, `FormArray` đều có), cho phép developer **subscribe vào unified Observable stream** để theo dõi các thay đổi state như value, status, touched, pristine, submit, reset. Đây là cách declarative hơn so với việc dùng `valueChanges` / `statusChanges` riêng lẻ.
+
+> Lưu ý: `FormSubmittedEvent` / `FormResetEvent` chỉ emit từ `FormGroup` (submit/reset là hành động của cả form), không có trên `FormControl` lẻ.
 
 ### Trước Angular 18
 
@@ -15,13 +17,15 @@ control.statusChanges.subscribe(status => console.log('Status:', status));
 ### Angular 18+
 
 ```ts
-// Subscribe vào events stream — nhận tất cả types of changes
-control.events.subscribe(event => {
-  if (event.type === 'valueChange') {
-    console.log('Value changed to:', event.value);
-  } else if (event.type === 'statusChange') {
-    console.log('Control status changed to:', event.status);
-  }
+import {ValueChangeEvent} from '@angular/forms';
+import {filter} from 'rxjs';
+
+// Subscribe vào events stream — lọc đúng class event
+control.events.pipe(
+  filter((e): e is ValueChangeEvent<typeof control.value> => e instanceof ValueChangeEvent),
+).subscribe(event => {
+  console.log('Value:', event.value);   // giá trị mới, lấy trực tiếp từ event
+  console.log('Source:', event.source); // reference tới control gốc
 });
 ```
 
@@ -50,9 +54,16 @@ control.events.subscribe(event => {
 Đây là file chính demo tính năng `events` trên FormControl. Component tạo reactive form với validation và subscribe vào events stream để theo dõi thay đổi.
 
 ```ts
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import {ChangeDetectionStrategy, Component, OnDestroy, OnInit} from '@angular/core';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  StatusChangeEvent,
+  Validators,
+  ValueChangeEvent,
+} from '@angular/forms';
+import {filter, Subscription} from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -96,11 +107,20 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private fromChange() {
-    const firstName$ = this.f['firstName'].events.subscribe((event) => {
+    // Lọc đúng class event bằng instanceof — không check string event.type
+    const firstNameValue$ = this.f['firstName'].events.pipe(
+      filter((e): e is ValueChangeEvent<string | null> => e instanceof ValueChangeEvent),
+    ).subscribe((event) => {
+      console.log('Value changed to:', event.value);
+      console.log('Source value:', event.source.value);
+    });
+
+    const firstNameStatus$ = this.f['firstName'].events.pipe(
+      filter((e): e is StatusChangeEvent => e instanceof StatusChangeEvent),
+    ).subscribe((event) => {
       const value = event.source.value as string;
       const status = event.source.status;
 
-      console.log('Value changed to:', value);
       console.log('Control status changed to:', status);
 
       if (status === 'INVALID' && value.includes('1')) {
@@ -115,7 +135,8 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this._subscription.add(firstName$);
+    this._subscription.add(firstNameValue$);
+    this._subscription.add(firstNameStatus$);
   }
 
   get f() {
@@ -125,36 +146,53 @@ export class AppComponent implements OnInit, OnDestroy {
 ```
 
 **Giải thích:**
-- `events` property — 返回一个 Observable stream các events của FormControl
-- `event.type` — loại event: `'valueChange'` hoặc `'statusChange'`
-- `event.source` — reference đến FormControl gốc, cho phép truy cập `value`, `status`, v.v.
+- `events` property — trả về một Observable stream các events của control (có trên `AbstractControl`, nên `FormControl` / `FormGroup` / `FormArray` đều dùng được; riêng `FormSubmittedEvent` / `FormResetEvent` chỉ emit từ `FormGroup`)
+- Official API là **class hierarchy**, không phải `event.type === 'valueChange'`:
+  `ValueChangeEvent<{value, source}>`, `StatusChangeEvent`, `PristineChangeEvent`, `TouchedChangeEvent`, `FormSubmittedEvent`, `FormResetEvent` — lọc bằng `event instanceof ValueChangeEvent` (kết hợp `filter()` từ rxjs), lấy giá trị mới qua `event.value`
+- `event.source` — reference đến control gốc, cho phép truy cập `value`, `status`, v.v.
 - **Dynamic validation**: Khi status là `INVALID` và value chứa '1', validators được override thành `minLength(1)` thay vì `minLength(4)`
 - Luôn `unsubscribe` trong `ngOnDestroy` để tránh memory leaks
 
-## Event Types trong FormControl
+## Event Types trong Forms (class hierarchy)
 
-### valueChange
+Official API dùng class riêng cho từng loại event — check bằng `instanceof`, không check string `event.type`:
 
-Khi giá trị của FormControl thay đổi:
+- `ValueChangeEvent<T>` — `{value: T, source}`: giá trị mới của control
+- `StatusChangeEvent` — `{source}` + đọc `source.status` (`VALID` / `INVALID` / `PENDING` / `DISABLED`)
+- `TouchedChangeEvent` — thay đổi touched state
+- `PristineChangeEvent` — thay đổi pristine/dirty state
+- `FormSubmittedEvent` / `FormResetEvent` — chỉ emit từ `FormGroup` khi submit/reset
+
+### ValueChangeEvent
+
+Khi giá trị của control thay đổi:
 
 ```ts
-control.events.subscribe(event => {
-  if (event.type === 'valueChange') {
-    console.log('New value:', event.source.value);
-    console.log('Previous value:', event.previousValue); // Nếu có
-  }
+import {ValueChangeEvent} from '@angular/forms';
+import {filter} from 'rxjs';
+
+control.events.pipe(
+  filter((e): e is ValueChangeEvent<typeof control.value> => e instanceof ValueChangeEvent),
+).subscribe(event => {
+  console.log('New value:', event.value); // giá trị mới lấy trực tiếp từ event
+  console.log('Source value:', event.source.value);
 });
 ```
 
-### statusChange
+> Không có `event.previousValue` — muốn so sánh giá trị cũ/mới hãy tự lưu biến hoặc dùng `pairwise()` từ rxjs.
+
+### StatusChangeEvent
 
 Khi status validation thay đổi (VALID, INVALID, PENDING, DISABLED):
 
 ```ts
-control.events.subscribe(event => {
-  if (event.type === 'statusChange') {
-    console.log('New status:', event.source.status);
-  }
+import {StatusChangeEvent} from '@angular/forms';
+import {filter} from 'rxjs';
+
+control.events.pipe(
+  filter((e): e is StatusChangeEvent => e instanceof StatusChangeEvent),
+).subscribe(event => {
+  console.log('New status:', event.source.status);
 });
 ```
 
@@ -163,12 +201,22 @@ control.events.subscribe(event => {
 Ví dụ thực tế — thay đổi validators theo điều kiện:
 
 ```ts
+import {ValueChangeEvent} from '@angular/forms';
+import {filter} from 'rxjs';
+
 private fromChange() {
-  const firstName$ = this.f['firstName'].events.subscribe((event) => {
+  const firstNameValue$ = this.f['firstName'].events.pipe(
+    filter((e): e is ValueChangeEvent<string | null> => e instanceof ValueChangeEvent),
+  ).subscribe((event) => {
+    console.log('Value changed to:', event.value);
+  });
+
+  const firstNameStatus$ = this.f['firstName'].events.pipe(
+    filter((e): e is StatusChangeEvent => e instanceof StatusChangeEvent),
+  ).subscribe((event) => {
     const value = event.source.value as string;
     const status = event.source.status;
 
-    console.log('Value changed to:', value);
     console.log('Control status changed to:', status);
 
     if (status === 'INVALID' && value.includes('1')) {
@@ -183,7 +231,8 @@ private fromChange() {
     }
   });
 
-  this._subscription.add(firstName$);
+  this._subscription.add(firstNameValue$);
+  this._subscription.add(firstNameStatus$);
 }
 ```
 
@@ -197,12 +246,14 @@ private fromChange() {
 
 | Aspect | `valueChanges` | `statusChanges` | `events` (v18+) |
 |--------|---------------|-----------------|------------------|
-| Value tracking | ✅ | ❌ | ✅ |
-| Status tracking | ❌ | ✅ | ✅ |
+| Value tracking | ✅ | ❌ | ✅ (`ValueChangeEvent.value`) |
+| Status tracking | ❌ | ✅ | ✅ (`StatusChangeEvent` + `source.status`) |
+| Touched / Pristine tracking | ❌ | ❌ | ✅ (`TouchedChangeEvent` / `PristineChangeEvent`) |
+| Submit / Reset (chỉ `FormGroup`) | ❌ | ❌ | ✅ (`FormSubmittedEvent` / `FormResetEvent`) |
 | Unified stream | ❌ | ❌ | ✅ |
-| Previous value | ❌ | ❌ | ✅ (event.previousValue) |
-| FormControl reference | Cần inject riêng | Cần inject riêng | ✅ (event.source) |
-| Event type | N/A | N/A | ✅ (valueChange/statusChange) |
+| Previous value | ❌ | ❌ | ❌ (không có `previousValue` — tự lưu hoặc dùng `pairwise()`) |
+| Control reference | Cần inject riêng | Cần inject riêng | ✅ (`event.source`) |
+| Phân loại event | N/A | N/A | ✅ (`instanceof ValueChangeEvent` / `StatusChangeEvent` / ...) |
 
 ## Best Practices
 
@@ -225,6 +276,7 @@ private fromChange() {
 
 ## Tài liệu tham khảo
 
+- [ValueChangeEvent API](https://angular.dev/api/forms/ValueChangeEvent)
 - [Syncfusion - What's New in Angular 18](https://www.syncfusion.com/blogs/post/whats-new-in-angular-18)
 - [Angular Reactive Forms Guide](https://angular.dev/guide/forms/reactive-forms)
 - [FormControl API](https://angular.dev/api/forms/FormControl)

@@ -50,9 +50,9 @@ import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 @Component({
   selector: 'app-fallback',
   template: `
-    <ng-content select=".header"></ng-content>
-    <ng-content select="#content"></ng-content>
-    <ng-content select="[data='footer']"></ng-content>
+    <ng-content select=".header">Default Header</ng-content>
+    <ng-content select="#content">Default Content Body</ng-content>
+    <ng-content select="[data='footer']">Default Footer</ng-content>
     <hr>
     <ng-content>Default Content</ng-content>
   `,
@@ -63,10 +63,10 @@ export class FallbackComponent implements OnInit { }
 ```
 
 **Giải thích:**
-- `<ng-content select=".header">` —投影 class `.header`, nếu không có → hiển thị rỗng
-- `<ng-content select="#content">` —投影 id `#content`, nếu không có → hiển thị rỗng
-- `<ng-content select="[data='footer']">` —投影 attribute `[data='footer']`, nếu không có → hiển thị rỗng
-- `<ng-content>Default Content</ng-content>` — **Fallback content**: nếu không có content nào được project → hiển thị "Default Content"
+- `<ng-content select=".header">Default Header</ng-content>` — projection theo class `.header`, nếu không có → hiển thị "Default Header"
+- `<ng-content select="#content">Default Content Body</ng-content>` — projection theo id `#content`, nếu không có → hiển thị "Default Content Body"
+- `<ng-content select="[data='footer']">Default Footer</ng-content>` — projection theo attribute `[data='footer']`, nếu không có → hiển thị "Default Footer". Chuẩn hóa selector dùng single-quote `data='footer'` cả ở component và nơi sử dụng `<span data='footer'>`
+- `<ng-content>Default Content</ng-content>` — slot mặc định (không selector): nếu không có content nào khớp → hiển thị "Default Content"
 
 ### `src/app/app.component.ts` — Root Component
 
@@ -82,7 +82,7 @@ import { FallbackComponent } from "./components/fallback.component";
     <app-fallback>
       <span class="header">New Header </span>
       <span id="content">New Content </span>
-      <span data="footer">New Footer </span>
+      <span data='footer'>New Footer </span>
     </app-fallback>
   `,
   standalone: true,
@@ -95,8 +95,18 @@ export class AppComponent { }
 **Giải thích:**
 - `<span class="header">New Header </span>` — được project vào `<ng-content select=".header">`
 - `<span id="content">New Content </span>` — được project vào `<ng-content select="#content">`
-- `<span data="footer">New Footer </span>` — được project vào `<ng-content select="[data='footer']">`
-- Nếu **bỏ trống** `<app-fallback></app-fallback>` → "Default Content" sẽ hiển thị
+- `<span data='footer'>New Footer </span>` — được project vào `<ng-content select="[data='footer']">`
+- Nếu **bỏ trống** `<app-fallback></app-fallback>` → từng slot hiển thị fallback tương ứng ("Default Header" / "Default Content Body" / "Default Footer" / "Default Content")
+
+### Kết quả render khi truyền rỗng `<app-fallback></app-fallback>`
+
+```
+Default Header
+Default Content Body
+Default Footer
+──────────
+Default Content
+```
 
 ### Kết quả render khi truyền đầy đủ content
 
@@ -105,13 +115,6 @@ New Header
 New Content
 New Footer
 ──────────
-```
-
-### Kết quả render khi truyền rỗng `<app-fallback></app-fallback>`
-
-```
-──────────
-Default Content
 ```
 
 ## Content Projection Patterns trong Angular
@@ -188,6 +191,13 @@ export class LayoutComponent { }
 2. **Better UX** — Luôn hiển thị nội dung hợp lý cho user
 3. **Declarative** — Fallback content được định nghĩa trực tiếp trong template
 4. **Composable** — Kết hợp tốt với multi-slot content projection
+
+## Caveats (cần biết khi dùng fallback)
+
+1. **Không bọc `<ng-content>` trong `@if` / `@for`**: content projection được match tại compile-time theo slot `select`. Bọc `ng-content` trong control flow sẽ phá vỡ projection — fallback có thể không bao giờ hiện hoặc content bị mất.
+2. **Projected content thuộc về parent view**: fallback chỉ là template của *child* component, nhưng content được project vẫn được tạo và bind trong context của *parent*. Đừng mong fallback "thừa kế" state nội bộ của child.
+3. **`@if (false)` vẫn tính là "có content"**: nếu nơi sử dụng viết `<app-fallback>@if (false) { ... }</app-fallback>`, Angular vẫn coi như đã project content nên **fallback không hiện** (dù DOM trống) — xem issue angular/angular#62046.
+4. **i18n + fallback lỗi**: kết hợp `i18n` với fallback content trong `ng-content` có thể gây lỗi biên dịch/extract — xem issue angular/angular#63065. Workaround: tách fallback ra component con hoặc tránh `i18n` trực tiếp trên fallback text.
 
 ## Yêu cầu
 

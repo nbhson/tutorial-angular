@@ -2,7 +2,9 @@
 
 ## Tổng quan
 
-Angular 17 giới thiệu **Input Value Transforms** — tính năng cho phép transform input values khi chúng được set thông qua `booleanAttribute` hoặc custom transform functions. Giải quyết bài toán common type mismatch khi sử dụng attribute syntax trong templates.
+Angular **Input Value Transforms** — tính năng cho phép transform input values khi chúng được set thông qua `booleanAttribute`/`numberAttribute` hoặc custom transform functions. Giải quyết bài toán common type mismatch khi sử dụng attribute syntax trong templates.
+
+> Attribution đúng: `@Input({transform})` có từ v16.1. Trong v17 vẫn là decorator-based. Signal `input()` với `transform` option mới là v17.2 developer preview.
 
 Trước đây, nếu component có `@Input() expanded: boolean`, việc sử dụng `<my-expander expanded/>` sẽ lỗi vì Angular truyền string `"expanded"` thay vì boolean `true`.
 
@@ -46,7 +48,7 @@ import { booleanAttribute, Component, Input, OnChanges, SimpleChanges } from '@a
   styleUrls: ['./child.component.scss']
 })
 export class ChildComponent implements OnChanges {
-  //旧 syntax — sẽ lỗi khi dùng <app-child expanded/>
+  // Cũ syntax — sẽ lỗi khi dùng <app-child expanded/>
   // @Input() expanded = false;
 
   // New syntax — transform string → boolean tự động
@@ -87,7 +89,7 @@ Sử dụng boolean attribute syntax — giờ đã hoạt động đúng:
 ## How it works
 
 ```
-旧 syntax:
+Cũ syntax:
   <app-child expanded/>  →  expanded = "expanded" (string)  →  LỖI type mismatch
 
 New syntax với transform:
@@ -122,11 +124,7 @@ New syntax với transform:
 <my-counter />             <!-- count = 0 (default) -->
 ```
 
-### `stringAttribute`
-
-```ts
-@Input({ transform: stringAttribute }) label: string = '';
-```
+> Note: chỉ có `booleanAttribute` / `numberAttribute` built-in — không có `stringAttribute`.
 
 ## Custom Transform Functions
 
@@ -146,9 +144,20 @@ export class MyComponent {
 <my-component name="hello" />  <!-- name = "HELLO" -->
 ```
 
-## So sánh旧 vs New
+## Signal Input với Transform (v17.2+ preview)
 
-|旧 Syntax | New Syntax với Transform |
+```ts
+import { booleanAttribute, Component, input } from '@angular/core';
+
+@Component({ selector: 'my-expander', template: `...` })
+export class Expander {
+  readonly expanded = input(false, { transform: booleanAttribute });
+}
+```
+
+## So sánh Cũ vs Mới
+
+| Cũ Syntax | New Syntax với Transform |
 |-----------|--------------------------|
 | `@Input() expanded = false;` | `@Input({ transform: booleanAttribute }) expanded = false;` |
 | `<expander expanded/>` — LỖI | `<expander expanded/>` — Hoạt động |
@@ -160,7 +169,8 @@ export class MyComponent {
 1. **`booleanAttribute`** — Attribute có mặt = `true`, không có = `false`
 2. **`numberAttribute`** — Convert string sang number, invalid = default value
 3. **Custom transforms** — Nhận value, trả về transformed value
-4. **Vẫn tương thích旧 syntax** — `[expanded]="true"` vẫn hoạt động
+4. **Vẫn tương thích Cũ syntax** — `[expanded]="true"` vẫn hoạt động
+5. **Signal input style (v17.2+ preview):** `readonly expanded = input(false, { transform: booleanAttribute });`
 
 ## Cách sử dụng
 

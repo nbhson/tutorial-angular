@@ -102,3 +102,4 @@ export class DynamicComponent {
 
 - [Angular 21 Announcement — blog.angular.dev](https://blog.angular.dev/announcing-angular-v21-57946c34f14b)
 - [Angular Style Binding Guide](https://angular.dev/guide/templates/style-binding)
+- [ngstyle-to-style migration — angular.dev](https://angular.dev/reference/migrations/ngstyle-to-style)

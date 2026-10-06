@@ -1,22 +1,45 @@
-# 2. Signal Diagnostics (Angular 20)
+# 2. Signal Diagnostics (đã hiệu chỉnh — KHÔNG có `.debug` public API)
 
-## Tổng quan
+> Đính chính toàn file: **KHÔNG có `signal.debug` / `computed.debug` public API**.
+> Feature thật quanh v20 là **Angular DevTools hiển thị signals graph**
+> + **`provideCheckNoChangesConfig()`** (#60906, cấu hình check-no-changes)
+> + cảnh báo circular dependency / error message cải thiện.
+> Mọi ví dụ `count.debug` trước đây là **invented**.
 
-Angular 20 giới thiệu **Signal Diagnostics** — bộ công cụ debug mới giúp developer hiểu tại sao **signal không cập nhật**, **component không re-render**, hoặc **computed value không thay đổi**. Đây là tooling quan trọng khi làm việc với Signals.
-
-## API mới
+## Feature thật
 
 ```typescript
-// Trong development mode
-import { signal, computed } from '@angular/core';
+// 1. DevTools: inspect signal values + dependency graph trong Components tab.
+// 2. Cấu hình check-no-changes (thay vì debug property):
+import { provideCheckNoChangesConfig } from '@angular/core';
+
+bootstrapApplication(App, {
+  providers: [
+    // #60906 — cấu hình mức check (ví dụ giữ behavior cũ khi migrate zoneless)
+    // xem docs provideCheckNoChangesConfig
+  ]
+});
+```
+
+```typescript
+// 3. Debug đúng cách: dùng effect() để log (runtime) + DevTools để inspect:
+import { signal, computed, effect } from '@angular/core';
 
 const count = signal(0);
-const double = computed(() => count() * 2);
+const doubled = computed(() => count() * 2);
 
-// Debug thông tin
-console.log(count.debug);
-console.log(double.debug);
+effect(() => {
+  console.log('count changed:', count(), 'doubled:', doubled());
+});
 ```
+
+## Tại sao vẫn cần `effect()`?
+
+| | `effect()` (runtime) | DevTools inspect (dev-time) |
+|---|---|---|
+| **Mục đích** | Thực thi side effects khi signal thay đổi | Xem trạng thái/dependency graph |
+| **Chạy khi nào** | Tự động khi dependency thay đổi | Khi bạn mở DevTools |
+| **Production?** | Có | Không |
 
 ## Tại sao cần feature này?
 
@@ -37,33 +60,21 @@ Signal Diagnostics cung cấp:
 
 ## Ví dụ thực tế
 
-### 1. Basic Debug
+### 1. Debug đúng: effect + DevTools (thay cho `.debug`)
 
 ```typescript
-import { signal, computed } from '@angular/core';
+import { signal, computed, effect } from '@angular/core';
 
 const count = signal(0);
 const doubled = computed(() => count() * 2);
 
-// Xem debug info
-console.log(count.debug);
-// {
-//   name: 'count',
-//   value: 0,
-//   equality: Object.is,
-//   ...
-// }
-
-console.log(doubled.debug);
-// {
-//   name: 'doubled',
-//   value: 0,
-//   equal: ...,
-//   ...
-// }
+effect(() => {
+  console.log('count:', count(), 'doubled:', doubled());
+});
+// + Mở Angular DevTools → Components tab → xem signal graph.
 ```
 
-### 2. Component Debug
+### 2. Component Debug đúng
 
 ```typescript
 @Component({
@@ -78,16 +89,12 @@ export class DebugComponent {
   count = signal(0);
   doubled = computed(() => this.count() * 2);
 
-  increment() {
-    this.count.update(c => c + 1);
+  constructor() {
+    effect(() => console.log('debug:', this.count(), this.doubled()));
   }
 
-  // Debug trong dev mode
-  ngDoCheck() {
-    console.log('Debug info:', {
-      count: this.count.debug,
-      doubled: this.doubled.debug
-    });
+  increment() {
+    this.count.update(c => c + 1);
   }
 }
 ```
@@ -128,26 +135,25 @@ effect(() => {
 });
 ```
 
-### Sau Angular 20
+### Sau (đúng): DevTools + effect + `provideCheckNoChangesConfig()` (#60906)
 
 ```typescript
 const count = signal(0);
 
-// Built-in debug info
-console.log(count.debug);
-
-// Better error messages
-// "Signal 'count' has not been updated because..."
+effect(() => {
+  console.log('count changed:', count());
+});
+// + DevTools signals graph + error message cải thiện.
 ```
 
-**Lợi ích:**
-- ✅ Debug signal values dễ dàng
-- ✅ Xem dependency graph
-- ✅ Detect circular dependencies
+**Lợi ích (thật):**
+- ✅ Inspect signals trong Angular DevTools
+- ✅ `provideCheckNoChangesConfig()` (#60906)
+- ✅ Detect circular dependencies (warning thật)
 - ✅ Better error messages
 - ✅ DevTools integration
 
-## `effect()` vs Debug — Hiểu rõ sự khác biệt
+## `effect()` vs inspect — phân biệt đúng
 
 > **Câu hỏi thường gặp:** "Nếu đã có debug rồi thì effect còn ý nghĩa nữa không?"
 
@@ -174,24 +180,22 @@ effect(() => {
 });
 ```
 
-### Debug (Signal Diagnostics) — Công cụ inspection (xem trạng thái)
-
-Debug chỉ **đọc và hiển thị** thông tin về signal, **KHÔNG** thực thi bất kỳ logic nào:
+### Inspect (DevTools) — chỉ xem trạng thái
 
 ```typescript
-console.log(count.debug);  // Chỉ XEM thông tin: name, value, dependencies...
-// { name: 'count', value: 0, equality: Object.is, ... }
+// Mở DevTools → xem signal values/graph. Không thực thi logic.
+// ❌ Không tồn tại: console.log(count.debug)
 ```
 
 ### So sánh
 
-| | `effect()` | Debug |
+| | `effect()` | DevTools inspect |
 |---|---|---|
-| **Mục đích** | Thực thi side effects khi signal thay đổi | Kiểm tra/inspector trạng thái signal |
-| **Chạy khi nào** | Tự động mỗi khi dependency thay đổi | Chỉ khi bạn gọi thủ công |
+| **Mục đích** | Thực thi side effects khi signal thay đổi | Kiểm tra/inspect trạng thái signal |
+| **Chạy khi nào** | Tự động mỗi khi dependency thay đổi | Chỉ khi bạn mở DevTools |
 | **Có thay đổi state không?** | Có thể (ghi file, gọi API, update DOM) | Không — chỉ đọc |
 | **Cần trong production?** | Có | Không (chỉ dev mode) |
-| **Ví dụ** | `effect(() => saveToDB(count()))` | `console.log(count.debug)` |
+| **Ví dụ** | `effect(() => saveToDB(count()))` | DevTools Components tab |
 
 ### Kết luận
 
@@ -206,8 +210,8 @@ console.log(count.debug);  // Chỉ XEM thông tin: name, value, dependencies...
 
 ## Best practices
 
-1. **Dùng Angular DevTools** để inspect signals
-2. **Kiểm tra `debug` property** khi debug
+1. **Dùng Angular DevTools** để inspect signals (không có `.debug` API)
+2. **Dùng `provideCheckNoChangesConfig()`** (#60906) khi cần cấu hình check
 3. **Dùng computed()** thay vì manual dependency tracking
 4. **Tránh circular dependencies**
 5. **Use production mode** khi deploy

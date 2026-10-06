@@ -1,8 +1,8 @@
-# 4. `ngComponentOutlet` — Dynamic Components (Angular 20)
+# 4. `ngComponentOutlet` — Dynamic Components (PRE-EXISTING, không phải mới v20)
 
-## Tổng quan
-
-Angular 20 giới thiệu **Dynamic Component Outlet** (`ngComponentOutlet`) — cho phép render **Component types động** trực tiếp trong template, **không cần ViewContainerRef hay factory**. Đây là một trong những features được mong đợi nhất, giúp dynamic components trở nên đơn giản hơn bao giờ hết.
+> Đính chính: `NgComponentOutlet` có từ **v14–v16**, KHÔNG phải mới v20.
+> Mới trong v20 chỉ là polish: input binding (#60137), two-way binding (#60342), outputs.
+> `ComponentFactoryResolver` đã remove từ v13+ — ví dụ "trước v20" dùng factory chỉ mang tính lịch sử.
 
 ## API mới
 
@@ -18,14 +18,11 @@ export class DashboardComponent {
 }
 ```
 
-**Thay đổi so với trước:**
+**Trạng thái đúng:**
 
-| Trước (Angular < 20) | Sau (Angular 20) |
+| Trước v20 (v14–v16 đã có) | Polish trong v20 |
 |---|---|
-| `ViewContainerRef` + `ComponentFactory` | `NgComponentOutlet` directive |
-| `createComponent(factory)` | `[ngComponentOutlet]="componentClass"` |
-| 5+ lines boilerplate | 1 line template |
-| Manual lifecycle management | Auto lifecycle |
+| `[ngComponentOutlet]="componentClass"` cơ bản | input binding #60137, two-way #60342, outputs |
 
 ## Tại sao cần feature này?
 
@@ -195,9 +192,9 @@ Subscribe outputs từ component instance
 Component render trong DOM
 ```
 
-## So sánh trước và sau Angular 20
+## So sánh: ViewContainerRef imperative vs directive (cả hai đều pre-v20)
 
-### Trước Angular 20
+### Trước (imperative, lịch sử — ComponentFactoryResolver đã remove từ v13+)
 
 ```typescript
 @Component({
@@ -239,7 +236,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 }
 ```
 
-### Sau Angular 20
+### Directive (có từ v14–v16, polish thêm trong v20)
 
 ```typescript
 @Component({

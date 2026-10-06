@@ -1,34 +1,36 @@
-# 7. ScrollOptions trong ViewportScroller (Angular 20)
+# 7. ScrollOptions trong ViewportScroller (đã hiệu chỉnh — #61002)
 
-## Tổng quan
+> Đính chính: **KHÔNG có `withViewPortScroller({...scrollOffset})`**.
+> API đúng là `withInMemoryScrolling(options: InMemoryScrollingOptions)` +
+> `ViewportScroller.scrollToPosition/scrollToAnchor(pos, ScrollOptions)` (#61002).
 
-Angular 20 giới thiệu **ScrollOptions** cho `ViewportScroller` — cho phép tùy chỉnh hành vi scroll khi navigate giữa các route, bao gồm `scrollPositionRestoration`, `anchorScrolling`, và `scrollOffset`. Đây là feature thuộc routing system, giải quyết vấn đề "scroll position" phổ biến trong SPA.
-
-## API mới
+## API đúng
 
 ```typescript
-// Trong app.config.ts
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(
       routes,
-      withViewPortScroller({
+      withInMemoryScrolling({
         scrollPositionRestoration: 'enabled',
         anchorScrolling: 'enabled',
-        scrollOffset: [0, 80]  // Offset từ top
       })
     )
   ]
 };
+
+// Scroll thủ công với ScrollOptions (ScrollBehavior):
+inject(ViewportScroller).scrollToPosition([0, 0], { behavior: 'smooth' });
+inject(ViewportScroller).scrollToAnchor('pricing', { behavior: 'smooth' });
 ```
 
-**Thay đổi so với trước:**
+**Thay đổi đúng:**
 
-| Trước (Angular < 20) | Sau (Angular 20) |
+| Trước | v20 (#61002) |
 |---|---|
-| `withViewPortScroller('top-only')` | `withViewPortScroller({ scrollPositionRestoration: 'enabled' })` |
-| `scrollPositionRestoration: 'enabled'` | Object config với nhiều options hơn |
-| Không có `scrollOffset` | Có `scrollOffset: [x, y]` |
+| `withInMemoryScrolling({ scrollPositionRestoration, anchorScrolling })` đã có | `ViewportScroller` methods nhận thêm `ScrollOptions` (`behavior`) |
 
 ## Tại sao cần feature này?
 
@@ -45,21 +47,20 @@ Angular 20 giải quyết tất cả bằng `ScrollOptions`.
 
 ## Ví dụ thực tế
 
-### 1. Basic Setup (`app.config.ts`)
+### 1. Basic Setup (`app.config.ts`) — đúng
 
 ```typescript
 import { ApplicationConfig } from '@angular/core';
-import { provideRouter, withViewPortScroller } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(
       routes,
-      withViewPortScroller({
-        scrollPositionRestoration: 'enabled',  // Restore scroll position
-        anchorScrolling: 'enabled',            // Anchor scrolling
-        scrollOffset: [0, 80]                  // Offset 80px từ top (cho header)
+      withInMemoryScrolling({
+        scrollPositionRestoration: 'enabled',
+        anchorScrolling: 'enabled',
       })
     )
   ]
@@ -135,11 +136,11 @@ export class ArticleComponent {
   private viewportScroller = inject(ViewportScroller);
 
   scrollToTop() {
-    this.viewportScroller.scrollToPosition([0, 0]);
+    this.viewportScroller.scrollToPosition([0, 0], { behavior: 'smooth' }); // ← ScrollOptions mới #61002
   }
 
   scrollToContent() {
-    this.viewportScroller.scrollToAnchor('article-content');
+    this.viewportScroller.scrollToAnchor('article-content', { behavior: 'smooth' });
   }
 
   scrollToPosition(x: number, y: number) {
@@ -191,35 +192,21 @@ Scroll đến #pricing (0px - 80px header offset = section top)
 
 ## So sánh trước và sau Angular 20
 
-### Trước Angular 20
+### Trước (đã có `withInMemoryScrolling`)
 
 ```typescript
-// Config đơn giản, ít options
-provideRouter(routes, withViewPortScroller('top-only'));
-
-// Hoặc
-provideRouter(routes, withViewPortScroller('enabled'));
-
-// Không có scrollOffset
-// Không có custom config per route
-```
-
-### Sau Angular 20
-
-```typescript
-// Config linh hoạt hơn
-provideRouter(routes, withViewPortScroller({
+provideRouter(routes, withInMemoryScrolling({
   scrollPositionRestoration: 'enabled',
   anchorScrolling: 'enabled',
-  scrollOffset: [0, 80]
 }));
+```
 
-// Scroll offset per route
-{
-  path: 'docs',
-  component: DocsComponent,
-  data: { scrollOffset: [0, 100] }
-}
+### Mới v20 (#61002): `ScrollOptions`
+
+```typescript
+// scrollToPosition / scrollToAnchor nhận thêm ScrollOptions:
+scroller.scrollToPosition([0, 0], { behavior: 'smooth' });
+scroller.scrollToAnchor('pricing', { behavior: 'smooth' });
 ```
 
 **Lợi ích:**
@@ -229,77 +216,38 @@ provideRouter(routes, withViewPortScroller({
 - ✅ Custom config per route
 - ✅ Better UX
 
-## Scroll Options chi tiết
-
-### 1. `scrollPositionRestoration`
+## Scroll Options đúng (`ScrollBehavior`)
 
 ```typescript
-{
-  scrollPositionRestoration: 'enabled' | 'disabled' | 'top'
-}
+scroller.scrollToPosition([x, y], { behavior: 'smooth' | 'instant' | 'auto' });
+scroller.scrollToAnchor(anchor, { behavior: 'smooth' | 'instant' | 'auto' });
 ```
-
-| Value | Mô tả |
-|---|---|
-| `'enabled'` | Restore scroll position khi quay lại trang |
-| `'disabled'` | Không restore (default behavior) |
-| `'top'` | Luôn scroll về top khi navigate |
-
-### 2. `anchorScrolling`
-
-```typescript
-{
-  anchorScrolling: 'enabled' | 'disabled'
-}
-```
-
-| Value | Mô tả |
-|---|---|
-| `'enabled'` | Scroll đến element có `id` khớp với `fragment` |
-| `'disabled'` | Không scroll đến anchor (default behavior) |
-
-### 3. `scrollOffset`
-
-```typescript
-{
-  scrollOffset: [x, y] | ((anchor: string, offset: number) => [x, y])
-}
-```
-
-| Value | Mô tả |
-|---|---|
-| `[x, y]` | Offset cố định từ top-left |
-| `(anchor, offset) => [x, y]` | Dynamic offset theo anchor |
 
 ## Use cases phổ biến
 
-### 1. Landing Page
+### 1. Landing Page (đúng API)
 
 ```typescript
-// Landing page với nhiều sections
-provideRouter(routes, withViewPortScroller({
+provideRouter(routes, withInMemoryScrolling({
   scrollPositionRestoration: 'top',
   anchorScrolling: 'enabled',
-  scrollOffset: [0, 80]  // Header height
 }))
+// + scroll smooth per-call: scroller.scrollToAnchor(id, { behavior: 'smooth' })
 ```
 
 ### 2. Documentation Site
 
 ```typescript
-// Docs site cần restore scroll position
-provideRouter(routes, withViewPortScroller({
+provideRouter(routes, withInMemoryScrolling({
   scrollPositionRestoration: 'enabled',
   anchorScrolling: 'enabled',
-  scrollOffset: [0, 100]  // Sidebar height
 }))
 ```
 
 ### 3. E-commerce
 
 ```typescript
-// Product list cần restore scroll position
-provideRouter(routes, withViewPortScroller({
+provideRouter(routes, withInMemoryScrolling({
   scrollPositionRestoration: 'enabled',
   anchorScrolling: 'disabled'
 }))
@@ -308,8 +256,7 @@ provideRouter(routes, withViewPortScroller({
 ### 4. Dashboard
 
 ```typescript
-// Dashboard luôn scroll về top
-provideRouter(routes, withViewPortScroller({
+provideRouter(routes, withInMemoryScrolling({
   scrollPositionRestoration: 'top',
   anchorScrolling: 'enabled'
 }))
@@ -317,11 +264,9 @@ provideRouter(routes, withViewPortScroller({
 
 ## Best practices
 
-1. **Dùng `scrollPositionRestoration: 'enabled'`** cho大多数 pages
-2. **Set `scrollOffset`** phù hợp với header/sidebar height
-3. **Dùng `anchorScrolling: 'enabled'`** cho landing pages
-4. **Test scroll behavior** trên nhiều devices
-5. **Handle dynamic content** (lazy loaded sections)
+1. **Dùng `withInMemoryScrolling()`** (không phải `withViewPortScroller`)
+2. Truyền `ScrollOptions` (`{ behavior }`) per-call cho smooth scroll
+3. **Test scroll behavior** trên nhiều devices
 
 ## Chạy thử
 

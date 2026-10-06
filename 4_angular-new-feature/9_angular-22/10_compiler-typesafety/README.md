@@ -1,184 +1,82 @@
 # Cải Thiện Compiler và Type-Safety
 
 ## Tổng quan
-Angular 22 tăng cường type safety trên toàn framework và dọn dẹp các đường đi nội bộ của compiler.
+Angular 22 tăng cường type safety ở tầng template expression — nổi bật là 2 feat compiler: **safe-navigation narrowing** và **optional-chaining trả `undefined`**. Kèm theo là các diagnostic chặt hơn (có migration tắt tạm 2 rules mới nếu nhiễu).
 
-## Tính năng chính
+## Tính năng chính (theo changelog thật)
 
-- **Type checking chặt chẽ hơn**: Tích hợp TypeScript tốt hơn
-- **Tối ưu compiler**: Biên dịch nhanh hơn với các đường đi nội bộ sạch hơn
-- **Suy luận kiểu cho signals**: Cải thiện suy luận kiểu (type inference) cho signals
-- **Kiểm tra kiểu template**: Nâng cao diagnostics template
+- **Safe navigation narrowing nullables**: `allow safe navigation to correctly narrow down nullables` — `?.` thu hẹp kiểu đúng trong type-check
+- **Optional chaining trả `undefined`**: `Angular expressions with optional chaining returns undefined` — nhất quán với JS, kèm migration `safe optional chaining` (idempotent)
+- **Diagnostics mới bật theo mặc định**: `nullishCoalescingNotNullable` + `optionalChainNotNullable` có thể báo trên project cũ — migration `ng update` có option tắt tạm
+- **Chặt chẽ hóa bindings**: `data-` attributes không còn bind inputs/outputs; throw khi trùng inputs/outputs; throw khi dùng `in` trong template expression; type-check `for` loops invalid
+- **NG8023**: Compile-time diagnostic khi duplicate selectors
 
 ## Ví dụ Code
 
-### Kiểm Tra Kiểu Template Chặt Chẽ
+### Safe-navigation narrowing
 
 ```typescript
-// Angular 22: Kiểm tra kiểu template chặt chẽ hơn được bật theo mặc định
 @Component({
   selector: 'app-strict-demo',
   template: `
-    <!-- ✅ Type-safe: Angular biết đây là số -->
-    <span>{{ count() }}</span>
-    
-    <!-- ❌ Lỗi kiểu: Angular phát hiện ở thời điểm compile -->
-    <!-- <span>{{ count() + "not a number" }}</span> -->
-    
-    <!-- ✅ Type-safe: Kiểm tra null đúng cách -->
-    @if (user()) {
-      <span>{{ user()!.name }}</span>
+    <!-- v22: ?. thu hẹp nullable đúng — không còn báo sai sau khi check -->
+    @if (user()?.address?.city) {
+      <span>{{ user()?.address?.city }}</span>
     }
   `
 })
 export class StrictDemoComponent {
-  count = signal<number>(0);
   user = signal<User | null>(null);
 }
 ```
 
-### Suy Luận Kiểu Cho Signals
+### Optional chaining trả `undefined`
 
 ```typescript
-// Angular 22: Suy luận kiểu tốt hơn cho các kiểu signal phức tạp
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  preferences: {
-    theme: 'light' | 'dark';
-    language: string;
-  };
-}
-
 @Component({
-  selector: 'app-user-profile',
+  selector: 'app-chain-demo',
   template: `
-    <!-- Type safety đầy đủ với các thuộc tính lồng nhau -->
-    <div [class]="user().preferences.theme">
-      <h2>{{ user().name }}</h2>
-      <p>{{ user().email }}</p>
-      <span>Theme: {{ user().preferences.theme }}</span>
-    </div>
+    <!-- v22: a?.b trả undefined (như JS) thay vì null — code so sánh == null vẫn ổn, === null cần sửa -->
+    <span>{{ user()?.name }}</span>
   `
 })
-export class UserProfileComponent {
-  // Angular 22: Suy luận kiểu đầy đủ cho các signal phức tạp
-  user = signal<User>({
-    id: 1,
-    name: 'John',
-    email: 'john@example.com',
-    preferences: { theme: 'dark', language: 'en' }
-  });
+export class ChainDemoComponent {
+  user = signal<User | null>(null);
 }
 ```
 
-### Event Binding Chặt Chẽ
+### Diagnostics mới sau khi lên v22
 
 ```typescript
-@Component({
-  selector: 'app-form',
-  template: `
-    <!-- Angular 22: Suy luận kiểu event đúng cách -->
-    <input (input)="onInput($event)" />
-    <button (click)="onClick($event)">Gửi</button>
-    <form (submit)="onSubmit($event)">
-      <input type="text" />
-    </form>
-  `
-})
-export class FormComponent {
-  // $event được định kiểu đúng là InputEvent
-  onInput(event: InputEvent) {
-    const value = (event.target as HTMLInputElement).value;
-    console.log(value);
-  }
-
-  // $event được định kiểu đúng là MouseEvent
-  onClick(event: MouseEvent) {
-    console.log(event.clientX, event.clientY);
-  }
-
-  // $event được định kiểu đúng là SubmitEvent
-  onSubmit(event: SubmitEvent) {
-    event.preventDefault();
-    console.log('Form đã gửi');
-  }
-}
+// Nếu project cũ báo ồ ạt 2 rules mới, có thể tắt tạm trong tsconfig:
+// {
+//   "angularCompilerOptions": {
+//     "nullishCoalescingNotNullable": false,
+//     "optionalChainNotNullable": false
+//   }
+// }
+// Migration ng update v22 đã hỗ trợ tắt tạm + safe-optional-chaining idempotent.
 ```
 
-### Dependency Injection Có Kiểu
+### Bindings bị siết (breaking cần biết)
 
 ```typescript
-// Angular 22: Type safety tốt hơn cho injection tokens
-import { InjectionToken, inject } from '@angular/core';
-
-interface AppConfig {
-  apiUrl: string;
-  timeout: number;
-  debug: boolean;
-}
-
-const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');
-
-// Sử dụng type-safe
-@Component({
-  selector: 'app-config-demo',
-  template: `
-    <p>API URL: {{ config.apiUrl }}</p>
-    <p>Timeout: {{ config.timeout }}ms</p>
-  `
-})
-export class ConfigDemoComponent {
-  private config = inject(APP_CONFIG);
-  // config được định kiểu đầy đủ là AppConfig
-  
-  constructor() {
-    // TypeScript thực thi interface
-    console.log(this.config.apiUrl);    // ✅ string
-    console.log(this.config.timeout);   // ✅ number
-    console.log(this.config.debug);     // ✅ boolean
-  }
-}
-```
-
-### Type Safety Cho Component Generic
-
-```typescript
-// Angular 22: Hỗ trợ generic type nâng cao
-@Component({
-  selector: 'app-list',
-  template: `
-    @for (item of items(); track getItemId(item)) {
-      <div [class.selected]="isSelected(item)">
-        <ng-content [select]="getItemTemplate()"></ng-content>
-      </div>
-    }
-  `
-})
-export class ListComponent<T extends { id: number }> {
-  items = signal<T[]>([]);
-  selectedId = signal<number | null>(null);
-  
-  isSelected(item: T): boolean {
-    return this.selectedId() === item.id;
-  }
-  
-  getItemId(item: T): number {
-    return item.id;
-  }
-}
+// ❌ Trước v22 lỡ bind được, v22 throw:
+// <div [data-foo]="x"> — data- attributes không bind inputs/outputs nữa
+// inputs/outputs trùng nhau — throw lúc compile (NG8023 cho selectors trùng)
+// `in` trong template expression — throw
 ```
 
 ## Cải Thiện Type Safety
 
-| Tính năng | Trước | Sau |
-|---------|--------|-------|
-| **Signal types** | Suy luận cơ bản | Hỗ trợ generic đầy đủ |
-| **Template checking** | Cảnh báo tùy chọn | Chặt chẽ theo mặc định |
-| **Event types** | Thường là `any` | Định kiểu `$event` đúng |
-| **DI tokens** | Định kiểu lỏng lẻo | Thực thi interface |
-| **Generic components** | Hỗ trợ hạn chế | Suy luận kiểu nâng cao |
+| Tính năng | Changelog v22 |
+|---------|-------|
+| **Safe navigation narrowing** | ✅ `allow safe navigation to correctly narrow down nullables` |
+| **Optional chaining `undefined`** | ✅ `Angular expressions with optional chaining returns undefined` |
+| **Diagnostics `nullishCoalescingNotNullable`/`optionalChainNotNullable`** | ✅ Bật mặc định, có migration tắt tạm |
+| **Duplicate selectors (NG8023)** | ✅ Compile-time error mới |
+| **`data-` / trùng IO / `in` / for invalid** | ✅ Throw/validate chặt hơn |
 
 ## Tham khảo
-- [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)
+- [Angular v22 changelog — compiler: safe navigation narrowing, optional chaining undefined, NG8023](https://github.com/angular/angular/releases/tag/v22.0.0)
+- [Angular 22 Announcement — blog.angular.dev](https://blog.angular.dev/announcing-angular-v22-c52bb83a4664)

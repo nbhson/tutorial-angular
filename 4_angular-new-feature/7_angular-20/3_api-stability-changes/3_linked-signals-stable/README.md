@@ -1,8 +1,11 @@
-# 3. Linked Signals Stable (Angular 20)
+# 3. Linked Signals Stable (stable TRONG v20 — #60741/#60865)
+
+> `linkedSignal()` chính thức stable **trong v20** — thuộc batch stable v20
+> cùng `effect`, `toSignal` (#60442), `toObservable` (#60449).
 
 ## Tổng quan
 
-Angular 20 chính thức đưa `linkedSignal()` từ **Developer Preview** sang **Stable**. `linkedSignal()` tạo signal có giá trị phụ thuộc vào signal khác, nhưng có thể **ghi đè độc lập** — kết hợp giữa `computed()` (reactive) và `signal()` (writable).
+Angular 20 chính thức đưa `linkedSignal()` từ **Developer Preview** sang **Stable** (#60741/#60865). `linkedSignal()` tạo signal có giá trị phụ thuộc vào signal khác, nhưng có thể **ghi đè độc lập** — kết hợp giữa `computed()` (reactive) và `signal()` (writable).
 
 ## API mới
 

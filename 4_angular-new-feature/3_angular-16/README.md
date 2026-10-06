@@ -43,7 +43,30 @@ Angular 16 giới thiệu Signals – paradigm mới cho reactivity:
 ## Yêu cầu
 
 - Angular 16+
-- Node.js 16+
+- Node.js v16 hoặc v18
+- TypeScript >= 4.9.3 và < 5.2.0 (TS < 5.0 chưa hỗ trợ decorators chuẩn mới; Angular 16 chưa hỗ trợ TS >= 5.2)
+
+## Breaking changes cần lưu ý khi nâng cấp lên v16
+
+- **Xóa ngcc và View Engine:** Angular 16 xóa hoàn toàn `ngcc` (Angular compatibility compiler) và View Engine. Mọi library phải ở định dạng Ivy (partial-Ivy). Nếu còn dependency dùng View Engine thì phải nâng cấp library trước.
+- **Xóa `ReflectiveInjector`:** đã bị xóa khỏi `@angular/core`. Dùng `Injector.create()` thay thế.
+- **`TransferState` / `makeStateKey` chuyển package:** chuyển từ `@angular/platform-browser` sang `@angular/core` (import cũ vẫn tương thích ngược nhưng nên đổi sang `@angular/core`).
+
+## Các nhóm feature mới trong v16 (bổ sung ngoài 3 demo chính)
+
+- **RxJS interop (developer preview):** `toSignal()` / `toObservable()` trong `@angular/core/rxjs-interop` giúp chuyển đổi Observable ↔ Signal; `takeUntilDestroyed()` hủy subscription tự động theo `DestroyRef`.
+- **Standalone tooling:** `ng new --standalone` tạo app standalone mặc định; schematic migration `ng generate @angular/core:standalone` chuyển NgModule/component/pipe cũ sang standalone.
+- **esbuild + Vite (developer preview):** builder `browser-esbuild` cho production build nhanh hơn; dev-server dùng Vite. Mức cải thiện build nhanh hơn đáng kể (con số 72% chỉ đo trên cold production builds minh họa, không phải mọi project).
+- **Jest support (experimental):** builder `@angular-devkit/build-angular:jest` thử nghiệm, thay thế Karma/Jasmine.
+- **Router:** chuyển sang `bootstrapApplication` + `provideRouter()` dạng functional là cách mặc định cho standalone; bật binding router data sang component input bằng `provideRouter(routes, withComponentInputBinding())`.
+
+Nguồn official:
+- https://v16.angular.io/guide/update-to-version-16
+- https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d
+- https://angular.dev/guide/signals
+- https://angular.dev/guide/rxjs-interop
+- https://angular.dev/guide/ssr
+- https://angular.dev/guide/hydration
 
 ## Chạy thử
 

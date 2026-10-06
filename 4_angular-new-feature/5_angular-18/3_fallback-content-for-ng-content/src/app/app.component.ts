@@ -7,7 +7,7 @@ import { FallbackComponent } from "./components/fallback.component";
   <app-fallback>
     <span class="header">New Header </span>
     <span id="content">New Content </span>
-    <span data="footer">New Footer </span>
+    <span data='footer'>New Footer </span>
   </app-fallback>
   `,
   styles: [``],

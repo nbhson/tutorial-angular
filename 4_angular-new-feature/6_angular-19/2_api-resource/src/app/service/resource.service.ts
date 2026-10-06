@@ -28,10 +28,11 @@ export class ResourceService {
   error = this.todoDetails.error;
 
 
-  updateTodo(name: string): void {
-    this.todoDetails.update((fruit) => (fruit ? {
-      ...fruit,
-      name,
+  updateTodo(title: string): void {
+    // Todo KHÔNG có field `name`, phải spread đúng field `title`
+    this.todoDetails.update((todo) => (todo ? {
+      ...todo,
+      title,
     } : undefined))
   }
 
@@ -39,8 +40,8 @@ export class ResourceService {
     this.todoDetails.reload();
   }
 
-  onTodoChange(fruitId: string): void {
-    this.todoId.set(fruitId);
+  onTodoChange(id: string): void {
+    this.todoId.set(id);
   }
 
 }

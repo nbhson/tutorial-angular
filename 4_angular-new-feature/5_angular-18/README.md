@@ -13,6 +13,8 @@ Angular 18 có những cập nhật quan trọng về change detection và routi
 | 1 | [Zoneless Change Detection](1_zoneless/README.md) | Experimental zoneless mode — chạy Angular không cần zone.js |
 | 2 | [Route Redirect as Function](2_route-redirect-as-fucntion/README.md) | `redirectTo` hỗ trợ functions — redirect linh hoạt dựa trên runtime conditions |
 
+> Ghi chú: folder `2_route-redirect-as-fucntion` đang typo `fucntion` (đúng là `function`). Giữ nguyên tên để tránh vỡ link/import, không rename trong tutorial này.
+
 ### II. Templates & Forms
 
 Cải thiện cho content projection và form management:
@@ -62,19 +64,23 @@ providers: [
 ### 2. Route Redirect as Function
 
 ```ts
-// app.routes.ts — Redirect function
+// app.routes.ts — Redirect function (official RedirectFunction signature)
+import type { RedirectFunction } from '@angular/router';
+
 {
   path: 'product',
-  redirectTo: ({ queryParams }) => {
+  pathMatch: 'prefix',
+  redirectTo: (({ queryParams }) => {
     const id = queryParams['id'];
-    return id ? 'product-detail' : 'not-found';
-  },
+    return id ? 'product-detail' : 'not-found'; // không '/' = relative, '/x' = absolute
+  }) as RedirectFunction,
 }
 ```
 
-- `redirectTo` nhận function thay vì string
-- Có thể inject services và access query/route params
-- Xử lý error cases dễ dàng hơn
+- `redirectTo` nhận function thay vì string. Signature chính thức là `Pick<ActivatedRouteSnapshot, 'routeConfig' | 'url' | 'params' | 'queryParams' | 'fragment' | 'data' | 'outlet' | 'title'>` — **không có `parent` / `root` / `route`**, đừng destructure `({ queryParams, route })`
+- Return là `MaybeAsync<string | UrlTree>` (string, `UrlTree`, `Promise` hoặc `Observable` của chúng)
+- Có thể `inject()` services trong function (chạy trong injection context) và xử lý error cases dễ dàng hơn
+- Xem: https://angular.dev/api/router/RedirectFunction
 
 ### 3. Fallback Content for ng-content
 
@@ -91,29 +97,37 @@ providers: [
 ### 4. Form Control State Change Events
 
 ```ts
-// Subscribe vào unified events stream
-control.events.subscribe(event => {
-  if (event.type === 'valueChange') {
-    console.log('Value:', event.source.value);
-  } else if (event.type === 'statusChange') {
-    console.log('Status:', event.source.status);
-  }
+// Subscribe vào unified events stream — official API là class hierarchy, lọc bằng instanceof
+import { ValueChangeEvent, StatusChangeEvent } from '@angular/forms';
+import { filter } from 'rxjs';
+
+control.events.pipe(
+  filter((e): e is ValueChangeEvent<typeof control.value> => e instanceof ValueChangeEvent),
+).subscribe(event => {
+  console.log('Value:', event.value); // giá trị mới lấy trực tiếp từ event
+  console.log('Source:', event.source); // reference tới control gốc
 });
 ```
 
-- Unified stream cho value và status changes
+- Unified stream cho value và status changes (class hierarchy: `ValueChangeEvent{value, source}`, `StatusChangeEvent`, `PristineChangeEvent`, `TouchedChangeEvent`, `FormSubmittedEvent`/`FormResetEvent` — riêng 2 loại cuối chỉ emit từ `FormGroup`)
+- Không có `event.type === 'valueChange'` hay `event.previousValue` — muốn so sánh cũ/mới hãy tự lưu biến hoặc dùng `pairwise()`
 - Dynamic validation với `setValidators()` + `updateValueAndValidity()`
 - Dễ dàng logging và debugging
+- Xem: https://angular.dev/api/forms/ValueChangeEvent
 
 ## Tính năng quan trọng khác trong Angular 18
 
 | Feature | Mô tả |
 |---------|-------|
-| **Event Coalescing mặc định** | Angular 18 bật event coalescing theo mặc định cho new projects, gộp nhiều change detection cycles |
-| **Merged event coalescing** | Sử dụng cùng scheduler cho cả zone.js và zoneless apps |
-| **Signal Inputs** | Signal-based inputs tiếp tục được cải thiện |
-| **Directive Composition API** | Cho phép compose multiple directives vào một component |
-| **Material 3** | Angular Material 18 hỗ trợ Material 3 design |
+| **ChangeDetectionScheduler mới + event coalescing mặc định** | Angular 18 dùng scheduler mới chung cho cả zone.js và zoneless apps; event coalescing bật mặc định cho new projects, gộp nhiều change detection cycles thành một |
+| **Control flow built-in (`@if` / `@for` / `@switch`) stable** | Không còn `*ngIf` / `*ngFor` / `*ngSwitch` cho code mới — cú pháp `@if`, `@for (track ...)`, `@switch` đã stable từ v17–v18 |
+| **`@defer` stable** | Deferrable views (`@defer`, `@placeholder`, `@loading`, `@error`) stable — lazy load UI theo trigger (viewport, interaction, timer...) |
+| **`@let` (v18.1, developer preview)** | Khai báo biến local trong template: `@let x = ...` — không phải v18.0 |
+| **Signals (developer preview)** | `signal()` / `computed()` / `effect()`, Signal Inputs (`input()` / `model()` / queries `viewChildren`...) ở v18 vẫn là developer preview, chưa stable |
+| **SSR + Event replay** | Hydration cải thiện, event replay cho phép tương tác sớm trước khi hydration xong |
+| **Material 3** | Angular Material 18 hỗ trợ Material 3 design (experimental theming) |
+
+> **Directive Composition API không phải tính năng v18** — API này có từ **v15**. Không liệt kê như "mới trong v18".
 
 ## Yêu cầu
 

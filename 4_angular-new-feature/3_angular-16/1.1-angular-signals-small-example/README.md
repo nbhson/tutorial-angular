@@ -2,19 +2,11 @@
 
 > Ví dụ thực tế về cách sử dụng Signals trong Angular 16 - Writable Signals, Computed, Effects.
 
-## Helpful CLI Commands
-
-```bash
-# Tạo các file environments
-ng generate environments
-
-# Migrate project to standalone
-ng generate @angular/core:standalone
-```
-
 ## Signals là gì?
 
 > `Signals` là lớp bao bọc xung quanh một giá trị có thể thông báo cho người dùng quan tâm khi giá trị đó thay đổi.
+
+> Ghi chú: lệnh `ng generate environments` không liên quan đến Signals (dùng để tạo file `environment.ts`), đã được bỏ khỏi doc này để tránh lạc chủ đề. Nếu muốn migrate project sang standalone thì dùng `ng generate @angular/core:standalone`.
 
 ## Writable Signals
 
@@ -35,9 +27,9 @@ this.count.set(3);
 // 2. update() - tính từ giá trị trước đó
 this.count.update(value => value + 1);
 
-// 3. update() với object
-this.object.update(pre => {
-  return { name: 'Son', age: 18 };
+// 3. update() với object - luôn tạo object mới bằng spread (immutable)
+this.object.update(prev => {
+  return { ...prev, name: 'Son', age: 18 };
 });
 ```
 
@@ -52,6 +44,12 @@ const doubleCount: Signal<number> = computed(() => count() * 2);
 // count = 1 → doubleCount = 2
 // count = 5 → doubleCount = 10
 ```
+
+> `signal()` trả về `WritableSignal` (đọc + ghi bằng `set`/`update`/`asReadonly`), còn `computed()` trả về `Signal` chỉ đọc (không có `set`/`update`). Muốn chia sẻ state ra ngoài mà không cho ghi trực tiếp thì dùng `mySignal.asReadonly()`.
+
+Nguồn official:
+- https://angular.dev/guide/signals
+- https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d
 
 ## Effects
 
@@ -124,6 +122,12 @@ export class SimpleSignalsComponent {
 ```
 
 **Kết luận:** Với Signals + OnPush, không cần `ChangeDetectorRef.markForCheck()` nữa. Angular tự động biết khi nào cần re-render.
+
+## Reference
+
+- https://angular.dev/guide/signals
+- https://angular.dev/guide/rxjs-interop
+- https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d
 
 ---
 

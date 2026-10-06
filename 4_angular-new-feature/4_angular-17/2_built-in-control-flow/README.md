@@ -4,6 +4,8 @@
 
 Angular 17 giới thiệu built-in control flow (`@if`, `@for`, `@switch`) — một cú pháp mới trong template giúp thay thế các structural directives cũ (`*ngIf`, `*ngFor`, `*ngSwitch`). Cú pháp mới gọn hơn, performant hơn, và không cần import thêm directives.
 
+> Note: trong v17 control flow là developer preview. Migration tự động: `ng g @angular/core:control-flow` để chuyển `*ngIf/*ngFor/*ngSwitch` sang `@if/@for/@switch`.
+
 ## Cấu trúc files
 
 ```
@@ -105,7 +107,7 @@ Minh họa `@if/@else if/@else`, `@if` với alias (`as`), và `@for/@empty`:
 Thay thế cho `*ngIf`, hỗ trợ điều kiện phức tạp và inline `@else`:
 
 ```html
-<!--旧 syntax -->
+<!-- Cũ syntax -->
 <!-- <div *ngIf="a > b">{{a}} is greater than {{b}}</div> -->
 
 <!-- New syntax — gọn hơn, không cần import NgIf -->
@@ -138,6 +140,8 @@ Thay thế cho `*ngFor`, bắt buộc phải có `track` expression:
 }
 ```
 
+> `track` là bắt buộc. Nếu collection là primitives và không có id, dùng `track $index` (default fallback).
+
 **Contextual variables có sẵn trong `@for`:**
 
 | Variable | Meaning |
@@ -160,7 +164,7 @@ Thay thế cho `*ngFor`, bắt buộc phải có `track` expression:
 Thay thế cho `ngSwitch`, gọn hơn nhiều:
 
 ```html
-<!--旧 syntax phức tạp -->
+<!-- Cũ syntax phức tạp -->
 <!-- <div [ngSwitch]="accessLevel">
   <admin-dashboard *ngSwitchCase="admin"/>
   <moderator-dashboard *ngSwitchCase="moderator"/>
@@ -175,9 +179,9 @@ Thay thế cho `ngSwitch`, gọn hơn nhiều:
 }
 ```
 
-## So sánh旧 vs New Syntax
+## So sánh Cũ vs Mới Syntax
 
-|旧 Syntax | New Syntax | Ưu điểm |
+| Cũ Syntax | New Syntax | Ưu điểm |
 |-----------|------------|----------|
 | `*ngIf="condition"` | `@if (condition) { }` | Không cần import NgIf |
 | `*ngFor="let item of items"` | `@for (item of items; track item.id) { }` | Track được yêu cầu, contextual variables |

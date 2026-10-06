@@ -1,46 +1,41 @@
-# 8. KeyValue Pipe — Optional Keys (Angular 21)
+# 8. KeyValue Pipe — Typing cho Optional Keys (Angular 21)
 
 ## Tổng quan
 
-Angular 21 cho phép **key và value là optional** khi dùng `KeyValuePipe`. Previously, bạn phải truyền cả key và value vào hàm callback. Từ Angular 21, bạn có thể chỉ dùng **key alone** hoặc **key + value** tùy nhu cầu.
+Angular 21 cải thiện **typing** của `KeyValuePipe`: `KeyValue` interface giờ biểu diễn đúng các object có **optional keys** (ví dụ `Partial<T>` hay `{ a?: string }`). Trước đây type của pipe không phản ánh trường hợp key có thể vắng mặt, gây khó khi dùng với strict templates.
+
+> ⚠️ Lưu ý: thay đổi này là về **kiểu dữ liệu (typing)**, không phải thêm callback `(key) => ...` cho pipe. `keyvalue` pipe vẫn nhận `(a, b) => ...` compare function như cũ.
 
 ## Ví dụ
 
-### KeyValuePair Interface
+### Trước Angular 21 — Typing không bao phủ optional keys
 
 ```typescript
-interface KeyValuePair {
-  key: string;
-  value: string | number | boolean | object | null | undefined;
+interface User {
+  name?: string;   // optional key
+  age?: number;
 }
-```
 
-### Trước Angular 21 — Luôn cần cả key và value
-
-```typescript
-// Template
+// Template — vẫn chạy, nhưng type của item.key/item.value
+// không phản ánh đúng optional keys dưới strictTemplates
 <div *ngFor="let item of user | keyvalue">
   {{ item.key }}: {{ item.value }}
 </div>
-
-// Component — callback phải có cả 2 params
-transform(items: any[], callback: (key: string, value: any) => any): any[] {
-  return items.filter(([key, value]) => callback(key, value));
-}
 ```
 
-### Sau Angular 21 — Key là optional
+### Sau Angular 21 — Typing đúng cho optional keys
 
 ```typescript
-// Template — có thể dùng key alone
-<div *ngFor="let item of user | keyvalue">
-  {{ item.key }}: {{ item.value }}
-</div>
+// Kiểu KeyValue giờ tương thích với Partial<T> / optional properties,
+// nên strict template + IDE autocomplete hoạt động chính xác hơn.
+user = signal<Partial<User>>({ name: 'Nguyen Van A' });
+```
 
-// Component — callback chỉ cần key
-transform(items: any[], callback: (key: string) => any): any[] {
-  return items.filter(([key]) => callback(key));
-}
+```html
+<!-- Không đổi cách dùng — chỉ type chính xác hơn -->
+<div *ngFor="let item of user() | keyvalue">
+  <strong>{{ item.key }}</strong>: {{ item.value }}
+</div>
 ```
 
 ## Ví dụ chi tiết
@@ -52,66 +47,31 @@ transform(items: any[], callback: (key: string) => any): any[] {
   selector: 'app-user-profile',
   template: `
     <h2>User Profile</h2>
-
-    <!-- Dùng cả key và value -->
-    <div *ngFor="let item of user | keyvalue">
+    <div *ngFor="let item of user() | keyvalue">
       <strong>{{ item.key }}</strong>: {{ item.value }}
-    </div>
-
-    <h3>Chỉ hiển thị boolean fields</h3>
-    <!-- Chỉ dùng key để filter -->
-    <div *ngFor="let item of user | keyvalue : onlyBooleanKeys">
-      {{ item.key }}: {{ item.value }}
     </div>
   `
 })
 export class UserProfileComponent {
-  user = signal({
+  user = signal<Partial<User>>({
     name: 'Nguyen Van A',
     age: 25,
-    isActive: true,
-    isAdmin: false,
-    email: 'a@example.com'
+    // isActive / email có thể vắng mặt — type vẫn đúng
   });
-
-  // Chỉ dùng key — value không cần thiết
-  onlyBooleanKeys(key: string): boolean {
-    return ['isActive', 'isAdmin'].includes(key);
-  }
-}
-```
-
-### So sánh trước và sau
-
-#### Trước Angular 21
-
-```typescript
-// Luôn cần cả key và value parameters
-onlyBooleanKeys(key: string, value: any): boolean {
-  return typeof value === 'boolean';
-}
-```
-
-#### Sau Angular 21
-
-```typescript
-// Chỉ dùng key — value là optional
-onlyBooleanKeys(key: string): boolean {
-  return ['isActive', 'isAdmin'].includes(key);
 }
 ```
 
 ## Lợi ích
 
-1. **Code ngắn hơn** — Không cần parameter không dùng
-2. **Readability** — Rõ ràng hơn khi chỉ cần key
-3. **Flexibility** — Tùy chọn dùng key hoặc key + value
+1. **Type-safe với `Partial<T>`** — Không cần cast khi object thiếu key
+2. **Strict templates ít báo sai** — IDE hiểu đúng `item.key`/`item.value`
+3. **Backward compatible** — Cách dùng pipe trong template không đổi
 
 ## Best Practices
 
-1. **Dùng key alone** khi filter chỉ dựa vào key name
-2. **Dùng key + value** khi cần access cả hai
-3. **Không thay đổi callback signature** đang hoạt động — backward compatible
+1. **Khai báo model bằng `Partial<T>`** khi field có thể vắng mặt
+2. **Không đổi compare function** đang hoạt động — signature `(a, b) => number` giữ nguyên
+3. **Bật `strictTemplates`** để hưởng lợi typing mới
 
 ## Tham khảo
 

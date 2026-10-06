@@ -1,19 +1,23 @@
-# 5. httpResource (Angular 20)
+# 5. httpResource (EXPERIMENTAL trong v20, stable v22 — đã hiệu chỉnh)
 
-## Tổng quan
+> Đính chính: `httpResource()` trong v20 vẫn là **experimental** (stable v22).
+> `request` bắt buộc là **reactive function** `() => HttpResourceRequest | undefined`;
+> transform response bằng **`parse`** (không phải `map`).
+> Xem https://angular.dev/api/common/http/httpResource.
 
-Angular 20 giới thiệu `httpResource()` — API kết hợp giữa `resource()` và `HttpClient` — tự động gọi HTTP API, quản lý loading/error state, và tích hợp với Angular's dependency injection.
-
-## API mới
+## API đúng (v20 experimental)
 
 ```typescript
 import { httpResource } from '@angular/common/http';
 
 const userId = signal(1);
 
-const user = httpResource(() => ({
+// request bắt buộc là function reactive:
+const user = httpResource<User>(() => ({
   url: `/api/users/${userId()}`,
-  method: 'GET'
+  method: 'GET',
+  // parse (không phải map) để transform raw response:
+  parse: (res) => res as User,
 }));
 ```
 
@@ -78,63 +82,43 @@ const data = httpResource(() => ({
 }));
 ```
 
-### 4. Transform Data (thay thế `map()` của RxJS)
+### 4. Transform Data bằng `parse` (không phải `map()`)
 
-> **Câu hỏi thường gặp:** "Với RxJS tôi dùng `map()` để transform data trước khi display. `httpResource()` có làm được không?"
+> **Đính chính:** `httpResource()` transform bằng **`parse`** trong request options,
+> không phải `map`. `computed()` vẫn dùng được cho derived display values,
+> nhưng transform raw response đúng là `parse`.
 
-**Có, nhưng theo cách khác.** `httpResource()` KHÔNG có `map()` hay `transform` trực tiếp. Thay vào đó, dùng `computed()` để transform:
-
-#### Cách cũ với RxJS:
+#### RxJS cũ (`map()`):
 
 ```typescript
-// RxJS: dùng pipe(map())
 user$ = this.http.get<User>(`/api/users/${id}`).pipe(
-  map(res => res.data),           // Transform response
-  map(user => user.name.toUpperCase())  // Transform tiếp
+  map(res => res.data),
 );
 ```
 
-#### Cách mới với httpResource():
+#### httpResource đúng (`parse`):
 
 ```typescript
-// httpResource() + computed() để transform
 user = httpResource<User>(() => ({
-  url: `/api/users/${this.userId()}`
+  url: `/api/users/${this.userId()}`,
+  parse: (raw) => (raw as { data: User }).data, // ← thay cho map()
 }));
 
-// Transform bằng computed() — tương đương map()
-userName = computed(() => {
-  const data = this.user.value();
-  return data ? data.name.toUpperCase() : 'Unknown';
-});
-
-// Transform nhiều bước — tương đương pipe(map(), map())
-userDisplay = computed(() => {
-  const data = this.user.value();
-  if (!data) return null;
-  return {
-    fullName: `${data.firstName} ${data.lastName}`,
-    avatar: data.avatarUrl ?? '/assets/default-avatar.png',
-    isActive: data.status === 'active'
-  };
-});
+// Derived display values vẫn có thể dùng computed():
+userName = computed(() => this.user.value()?.name.toUpperCase() ?? 'Unknown');
 ```
 
-#### So sánh RxJS `map()` vs `computed()` transform
+#### So sánh RxJS `map()` vs `parse` + `computed()`
 
-| | RxJS `map()` | `computed()` transform |
+| | RxJS `map()` | `parse` (httpResource) + `computed()` |
 |---|---|---|
-| **Khi chạy** | Mỗi lần HTTP response về | Mỗi khi signal dependency thay đổi |
-| **Lazy?** | Không (eager trong pipe) | Có (lazy, chỉ compute khi cần) |
-| **Cache?** | Không | Có (auto-cache kết quả) |
-| **Compose được?** | Có (pipe nhiều map) | Có (computed lồng computed) |
-| **Nơi viết** | Trong `.pipe()` | Ngoài `httpResource()` |
+| **Khi chạy** | Mỗi lần HTTP response về | `parse`: khi response về; `computed()`: khi signal đổi |
+| **Nơi viết** | Trong `.pipe()` | `parse` trong request fn; `computed()` ngoài |
 
-#### Kết luận
+#### Kết luận (đúng)
 
-- **`httpResource()` không có `map()`** vì nó không phải Observable —它 là Signal-based Resource
-- **Dùng `computed()`** để transform data — đây là cách "Angular way"
-- `computed()` thậm chí **tốt hơn** `map()` vì có **lazy evaluation** và **auto caching**
+- **`httpResource()` dùng `parse`** để transform raw response — không phải `map`.
+- **Dùng `computed()`** cho derived display values — đây là cách "Angular way".
 - Nếu cần transform **trước khi request** (ví dụ: transform URL params), viết logic trong callback của `httpResource()`:
 
 ```typescript

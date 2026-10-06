@@ -1,20 +1,19 @@
-# 3. Template Type Checking (Angular 20)
+# 3. Template Type Checking (đã hiệu chỉnh)
 
-## Tổng quan
+> Đính chính: `strictTemplates` có từ **v9**, KHÔNG phải mới v20.
+> Mới trong v20 chỉ là **host-bindings polish** (#60267) + extended diagnostics
+> (#60495/#60279/#59443).
 
-Angular 20 cải thiện **Template Type Checking** — cho phép kiểm tra types trong template chính xác hơn, bắt lỗi sớm hơn khi build. Đây là improvement lớn cho developer experience, giúp tránh runtime errors.
-
-## API mới
+## Trạng thái đúng
 
 ```typescript
-// tsconfig.json - stricter template checking
+// tsconfig.json — strictTemplates đã có từ v9:
 {
   "angularCompilerOptions": {
-    "strictTemplates": true,
-    "strictInputAccessModifiers": true,
-    "strictInjectionParameters": true
+    "strictTemplates": true // có từ v9
   }
 }
+// Mới v20: kiểm tra host bindings chính xác hơn (#60267) + diagnostics mở rộng.
 ```
 
 ## Tại sao cần feature này?
@@ -26,11 +25,9 @@ Angular 20 cải thiện **Template Type Checking** — cho phép kiểm tra typ
 | **IDE support** | Không có autocomplete trong template |
 | **Refactoring** | Rename property trong class không update template |
 
-Angular 20 cải thiện:
-- Stricter template type checking
-- Better error messages
-- Improved IDE integration
-- Safe refactoring
+Angular 20 cải thiện (không phải mới hoàn toàn):
+- Host-bindings type-check polish (#60267)
+- Extended diagnostics (#60495/#60279/#59443)
 
 ## Ví dụ thực tế
 
@@ -123,9 +120,9 @@ export class FormComponent {
 }
 ```
 
-## So sánh trước và sau Angular 20
+## So sánh đúng
 
-### Trước Angular 20
+### Trước (strictTemplates đã có từ v9)
 
 ```typescript
 // tsconfig.json - loose checking
@@ -142,7 +139,7 @@ export class FormComponent {
 export class MyComponent {}
 ```
 
-### Sau Angular 20
+### Polish trong v20 (#60267 + extended diagnostics)
 
 ```typescript
 // tsconfig.json - strict checking

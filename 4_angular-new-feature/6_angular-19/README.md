@@ -40,8 +40,10 @@ Cải thiện lớn cho developer workflow và build performance:
 
 | # | Feature | Mô tả |
 |---|---------|-------|
-| 10 | [Angular Diagnostics](10_new-angular-diagnostics/README.md) | Extended diagnostics — detect unused standalone imports |
-| 11 | [TypeScript Isolated Modules](10_typescript-isolated-modules/README.md) | Bật `isolatedModules` để transpile qua esbuild, boost 10% build time |
+| 10 | [TypeScript Isolated Modules](10_typescript-isolated-modules/README.md) | Bật `isolatedModules` để transpile qua esbuild, boost 10% build time (có từ v18.2, không phải new v19) |
+| 11 | [Angular Diagnostics](10_new-angular-diagnostics/README.md) | Extended diagnostics — detect unused standalone imports |
+
+> Ghi chú: hiện có 2 folder đều đánh số `10_` (`10_typescript-isolated-modules` + `10_new-angular-diagnostics`). Đúng ra nên là `10_` + `11_` để tránh trùng số thứ tự.
 
 ## ĐÁNH GIÁ TỔNG QUAN
 
@@ -76,13 +78,18 @@ Cải thiện lớn cho developer workflow và build performance:
 
 ## Tính năng quan trọng khác trong Angular 19
 
-| Feature | Mô tả |
-|---------|-------|
-| **Signal Inputs** | `input()` API tiếp tục được cải thiện |
-| **Model Inputs** | `model()` two-way binding cho child components |
-| **Standalone by default** | Components mới là standalone theo mặc định |
-| **Dependency injection** | `input()` và `model()` tích hợp DI |
-| **Zoneless improvements** | Zoneless mode tiếp tục được refinement |
+| Feature | Mô tả | Ghi chú version |
+|---------|-------|-----------------|
+| **Standalone by default** | Components/directives/pipes mới sinh ra là standalone theo mặc định (`standalone: true` ngầm định) | ✅ Mới trong v19 |
+| **Signal Inputs** | `input()` API tiếp tục được cải thiện | Có từ v17.1, không phải new v19 |
+| **Model Inputs** | `model()` two-way binding cho child components | Có từ v17.2, không phải new v19 |
+| **Zoneless improvements** | Zoneless mode tiếp tục được refinement (experimental) | Có từ v18, cải tiến dần ở v19 |
+| **Incremental Hydration** | `withIncrementalHydration()` + `@defer (hydrate ...)` — hydrate từng phần thay vì toàn page | ✅ Mới trong v19 |
+| **HMR kiểu mới** | Template HMR (hot swap template không cần refresh, hoàn thiện ở v19.1) | ✅ Mới v19/v19.1 |
+| **`rxResource()` / `httpResource()`** | Resource chuyên cho Observable / HttpClient (`httpResource` stable từ v20) | ✅ Mới v19 (experimental) |
+| **`strictStandalone` + `standalone default`** | Schematic `standalone-migration`, compiler flag `strictStandalone` | ✅ Mới v19 |
+| **SSR `RenderMode` per-route** | `ServerRoute` — cấu hình `RenderMode.Prerender/Server/Client` cho từng route | ✅ Mới v19 |
+| **`RouterLink` nhận `UrlTree`** | `[routerLink]` bind trực tiếp `UrlTree` thay vì chỉ string/array | ✅ Mới v19 |
 
 ## Yêu cầu
 
@@ -100,6 +107,8 @@ ng serve
 ## Tài liệu tham khảo
 
 - [Angular 19 Release Blog](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
+- [linkedSignal API](https://angular.dev/api/core/linkedSignal)
+- [Resource API Guide](https://angular.dev/guide/signals/resource)
 - [What's New in Angular 19](https://angular.love/angular-19-whats-new)
 - [Angular 19 Update Guide](https://angular.dev/update-guide)
 - [Angular Official Documentation](https://angular.dev)

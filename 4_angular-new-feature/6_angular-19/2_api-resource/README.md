@@ -28,10 +28,12 @@ items = resource({
 ## Cú pháp
 
 ```ts
+// v19 dùng key `request:` — từ v20 đổi tên thành `params:` (breaking rename)
 resource<T, R>({
-  request: () => R,           // Signal hoặc getter — input
+  request: () => R,           // v19 — Signal hoặc getter — input
+  // params: () => R,        // v20+ — tên mới thay cho `request`
   loader: async (params) => { // Async function — fetch data
-    params.request;           // Giá trị từ request
+    params.request;           // v19 — giá trị từ request (v20: params.params)
     params.abortSignal;       // AbortController signal
     return data as T;
   }
@@ -40,10 +42,14 @@ resource<T, R>({
 
 `ResourceRef<T>` cung cấp:
 - `.value` — Signal chứa data
+- `.status` — Signal `ResourceStatus` (`idle` | `loading` | `reloading` | `resolved` | `error` | `local`)
 - `.isLoading` — Signal boolean
 - `.error` — Signal chứa error
+- `.hasValue()` — kiểm tra đã có giá trị chưa
 - `.reload()` — Trigger reload
-- `.update()` — Update value locally
+- `.update()` / `.set()` — Update value locally
+- `.id` — định danh instance (hữu ích khi debug nhiều resource)
+- `.defaultValue` / `stream` — giá trị mặc định / resource dạng stream (các option mở rộng)
 
 ## Files trong project
 
@@ -79,14 +85,17 @@ export class ResourceService {
 
   // Convenience accessors
   isTodoLoading = this.todoDetails.isLoading;
+  status = this.todoDetails.status; // 'idle' | 'loading' | 'reloading' | 'resolved' | 'error' | 'local'
   todo = this.todoDetails.value;
   error = this.todoDetails.error;
 
-  // Update locally
-  updateTodo(name: string): void {
-    this.todoDetails.update((fruit) =>
-      fruit ? { ...fruit, name } : undefined
+  // Update locally — Todo KHÔNG có field `name`, phải spread đúng field `title`
+  updateTodo(title: string): void {
+    this.todoDetails.update((todo) =>
+      todo ? { ...todo, title } : undefined
     );
+    // hoặc: this.todoDetails.set({ userId: 1, id: 1, title, completed: false });
+    // kiểm tra: this.todoDetails.hasValue();
   }
 
   // Manual reload
@@ -164,8 +173,14 @@ todoId signal thay đổi
 
 ⚠️ `resource()` đang ở giai đoạn **Developer Preview** trong Angular 19 — API có thể thay đổi ở phiên bản stable.
 
+- Key `request:` chỉ đúng cho **v19**. Từ **v20** đổi thành **`params:`** (`params.request` → `params.params`). Khi đọc guide mới, nhớ map lại tên.
+- Đừng quên các member hay bị bỏ sót: `.status`, `.hasValue()`, `.set()`, `.id`, `defaultValue`, `stream`.
+- Họ `*Resource`: `resource()` (generic) → `rxResource()` (wrap Observable) → `httpResource()` (wrap HttpClient, stable từ v20).
+
 ## Reference
 
 - [Angular Resource API Docs](https://angular.dev/guide/signals/resource)
+- [resource API](https://angular.dev/api/core/resource)
+- [rxResource API](https://angular.dev/api/core/rxjs-interop/rxResource)
 - [Angular 19 Release Notes](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)
 - [JSONPlaceholder API](https://jsonplaceholder.typicode.com/) — Mock API used in demo

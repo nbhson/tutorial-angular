@@ -56,18 +56,29 @@ bootstrapApplication(AppComponent, {
 
 ### 4. Responsive Images
 
+> Đừng viết `srcset` thủ công với filenames. Dùng `ngSrcset` (chỉ descriptors `400w/800w` hoặc `1x/2x`),
+> directive tự suy filename từ `ngSrc`; hoặc chỉ cần `sizes` để auto-generate `srcset` từ loader.
+> Docs: https://angular.dev/guide/image-optimization
+
 ```html
 <img
   ngSrc="/assets/hero.jpg"
   width="800"
   height="600"
   sizes="(max-width: 768px) 100vw, 50vw"
-  srcset="
-    /assets/hero-400.jpg 400w,
-    /assets/hero-800.jpg 800w,
-    /assets/hero-1200.jpg 1200w
-  ">
+  ngSrcset="400w, 800w, 1200w">
 ```
+
+### 4b. Fill mode [experimental trong v15] + auto-srcset
+
+```html
+<!-- fill: ảnh phủ kín parent (parent cần position: relative) -->
+<img ngSrc="/assets/hero.jpg" fill priority>
+```
+
+- Auto-`srcset` generation + `fill` là 2 feature mới đúng của v15.
+- `priority` + SSR tự tạo `<link rel="preload">` trong `<head>`.
+- `loaderParams`, `disableOptimizedSrcset`, breakpoints mặc định `[16,32,...,3840]`.
 
 ### 5. CDN Loader
 
@@ -78,8 +89,8 @@ provideImgixLoader('https://my-site.imgix.net')
 // Cloudinary
 provideCloudinaryLoader('https://res.cloudinary.com/my-site')
 
-// Custom CDN
-provideImageKitLoader('https://ik.imagekit.io/my-site')
+// Custom loader qua provideImageLoader(fn) + ImageLoaderConfig
+// provideImageKitLoader cũng tồn tại nhưng bản chất vẫn là wrapper của provideImageLoader
 ```
 
 ## Flow Diagram

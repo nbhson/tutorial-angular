@@ -4,6 +4,8 @@
 
 Angular 17 tích hợp **View Transitions API** của browser vào Angular Router thông qua `withViewTransitions()`. Tính năng này cho phép tạo animated transitions mượt mà giữa các routes khi navigating, sử dụng native browser capabilities.
 
+> Note version: trong v17 là experimental, từ v19/v20 là developer preview.
+
 View Transitions API là một Web Platform API mới, cho phép developers tạo smooth transitions khi thay đổi DOM — bao gồm cả SPA navigation.
 
 ## Cấu trúc files
@@ -49,11 +51,12 @@ import { routes } from './app.routes';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
-    provideRouter(routes, withViewTransitions()) // Kích hoạt view transitions
+    provideRouter(routes, withViewTransitions()) // Kích hoạt view transitions (gộp 1 lần duy nhất)
   ]
 };
 ```
+
+> Alternative cho NgModule: `RouterModule.forRoot(routes, { enableViewTransitions: true })`.
 
 **Giải thích:**
 - `withViewTransitions()` — kích hoạt View Transitions API cho Angular Router
@@ -208,13 +211,11 @@ export const PHOTO_LIST = [
 
 ```ts
 provideRouter(routes, withViewTransitions({
-  onViewTransitionCreated: (transitionInfo) => {
-    // Custom animation control
-    console.log('Transition:', transitionInfo);
-
-    // Skip particular animations
-    // Add classes to document
-    // Customize transition behavior
+  onViewTransitionCreated: ({ transition, from, to }) => {
+    // Chạy trong injection context
+    console.log('Transition:', from, '->', to, transition);
+    // Có thể dùng skipTransition() cho fragment navigation / reduced-motion,
+    // hoặc document.startViewTransition tùy browser
   },
 }))
 ```
@@ -234,10 +235,11 @@ provideRouter(routes, withViewTransitions({
 
 ## Lưu ý quan trọng
 
-1. **Vẫn là Experimental** — API có thể thay đổi trong tương lai
-2. **Browser support** — Chỉ hỗ trợ browsers hỗ trợ View Transitions API (Chrome 111+)
+1. **Experimental trong v17** — API có thể thay đổi (developer preview từ v19/v20)
+2. **Browser support** — Chromium-based là chính, các browser khác progressive enhancement (không có transition nhưng vẫn navigate bình thường)
 3. **`viewTransitionName` phải unique** — Mỗi element cần unique name để transition đúng
 4. **Fallback behavior** — Browser không hỗ trợ sẽ ignore transitions, vẫn hoạt động bình thường
+5. **Có `skipTransition()`** cho fragment navigation / reduced-motion
 
 ## Cách sử dụng
 

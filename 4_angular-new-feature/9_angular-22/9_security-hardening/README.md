@@ -1,163 +1,95 @@
 # Siết Chặt Bảo Mật (Security Hardening)
 
 ## Tổng quan
-Angular 22 làm sanitization chặt chẽ hơn theo mặc định. Nếu bạn dùng ` DomSanitizer.bypassSecurityTrust*`, giờ bạn sẽ nhận được cảnh báo trong dev và xử lý chặt chẽ hơn trong prod.
+Angular 22 không thêm cảnh báo dev mới cho `DomSanitizer.bypassSecurityTrust*` — nội dung cũ về "dev warning khi bypass" là **chưa verify, đã xóa**. Những thay đổi bảo mật thật trong changelog v22 đều nằm ở tầng sanitization schema, SVG, SSR/SSRF và transfer-cache.
 
-## Tính năng chính
+## Tính năng chính (theo changelog thật)
 
-- **Sanitization chặt chẽ hơn**: ` DomSanitizer.bypassSecurityTrust*` kích hoạt cảnh báo
-- **Cảnh báo dev**: Cảnh báo console rõ ràng khi bypass bảo mật
-- **Thực thi trong prod**: Xử lý chặt chẽ hơn trong production builds
-- **Thăng hạng safe value**: Safe values được thăng hạng thành DomSanitizer.bypassSecurityTrustUrl
-- **Thực thi best practices**: Khuyến khích các mẫu code an toàn
+- **Sanitize `href`/`xlink:href` động trên SVG `<a>`**: `sanitize dynamic href and xlink:href bindings on SVG a elements`
+- **Đồng bộ sanitization schema**: `synchronize core sanitization schema with compiler`, `support prefix-insensitive DOM schema lookups`, `normalize tag names with custom namespaces`, compile-time i18n attribute validation
+- **Chặn SSRF backslash/protocol-relative URL (platform-server)**: `parseUrl`/`ServerPlatformLocation` không còn để `//evil.com` hay `/\evil.com` override hostname khi SSR
+- **Chặn rò credentials qua lệch URL resolution (SSR)**: Sửa khác biệt `trim()` vs WHATWG URL (Unicode whitespace như `U+00A0`) khiến `relativeUrlsTransformerInterceptorFn` gửi nhầm `Authorization` ra origin attacker
+- **Sửa transfer-cache cache-key ambiguity**: `HttpParams` lặp (`append('role','user').append('role','admin')` vs `set('role','user,admin')`) trước đây serialize trùng `role=user,admin` gây reuse nhầm response / state poisoning — nay tách key đúng
+- **Validate chặt `Host`/`Forwarded` headers**: `Host`, `X-Forwarded-Host`, `Forwarded(host)`, `X-Forwarded-Port/Proto/Prefix` bị validate strict, mặc định strip proxy headers trừ khi bật `trustProxyHeaders`
 
 ## Ví dụ Code
 
-### Bypass Bảo Mật (Giờ Có Cảnh Báo)
+### SVG `<a>` với `href` động — nay bị sanitize
 
 ```typescript
-import { Component } from '@angular/core';
-import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
-
 @Component({
-  selector: 'app-unsafe-demo',
+  selector: 'app-svg-link',
   template: `
-    <div [innerHTML]="trustedHtml"></div>
-    <a [href]="trustedUrl">Liên kết</a>
+    <!-- v22: href/xlink:href động trên SVG <a> được sanitize như HTML <a> -->
+    <svg>
+      <a [href]="externalUrl()" [attr.xlink:href]="externalUrl()">Mở</a>
+    </svg>
   `
 })
-export class UnsafeDemoComponent {
-  trustedHtml: SafeHtml;
-  trustedUrl: SafeUrl;
-
-  constructor(private sanitizer: DomSanitizer) {
-    // ⚠️ Angular 22: Điều này giờ tạo ra cảnh báo dev!
-    this.trustedHtml = sanitizer.bypassSecurityTrustHtml(
-      '<script>alert("xss")</script>'
-    );
-    
-    // ⚠️ Angular 22: Cái này cũng cảnh báo trong dev
-    this.trustedUrl = sanitizer.bypassSecurityTrustUrl(
-      'javascript:alert("xss")'
-    );
-  }
+export class SvgLinkComponent {
+  externalUrl = signal('https://docs.angular.io');
 }
 ```
 
-### Các Pattern An Toàn Thay Thế
+### SSR: Đừng truyền `req.url` thô vào render
 
 ```typescript
-import { Component, computed, signal } from '@angular/core';
+// server.ts — pattern dễ dính SSRF backslash URL trước v22
+// Attacker GET //evil.com/ hoặc /\evil.com/ khiến HttpClient relative + PlatformLocation.hostname trỏ nhầm origin
+import { renderApplication } from '@angular/platform-server';
 
-@Component({
-  selector: 'app-safe-demo',
-  template: `
-    <!-- An toàn: Dùng component interpolation thay vì innerHTML -->
-    @for (item of safeItems(); track item.id) {
-      <div class="item">
-        <h3>{{ item.title }}</h3>
-        <p>{{ item.description }}</p>
-      </div>
-    }
-    
-    <!-- An toàn: Dùng routerLink thay vì href -->
-    <a [routerLink]="['/page', pageId()]">Điều hướng</a>
-    
-    <!-- An toàn: Whitelist các URL một cách tường minh -->
-    @if (isSafeUrl(inputUrl())) {
-      <a [href]="inputUrl()">Liên kết ngoài</a>
-    }
-  `
-})
-export class SafeDemoComponent {
-  inputUrl = signal('');
-  pageId = signal(1);
-  
-  safeItems = signal([
-    { id: 1, title: 'Mục 1', description: 'Mô tả 1' },
-    { id: 2, title: 'Mục 2', description: 'Mô tả 2' }
-  ]);
-  
-  isSafeUrl(url: string): boolean {
-    const allowedDomains = ['example.com', 'docs.angular.io'];
-    try {
-      const parsed = new URL(url);
-      return allowedDomains.includes(parsed.hostname);
-    } catch {
-      return false;
-    }
+app.get('*', async (req, res) => {
+  // Nên sanitize leading slashes trước khi đưa vào Angular
+  let url = req.url;
+  if (url.startsWith('//') || url.startsWith('/\\') || url.startsWith('\\')) {
+    url = '/' + url.replace(/^[/\\]+/, '');
   }
-}
+  const html = await renderApplication(bootstrap, { document: template, url });
+  res.send(html);
+});
 ```
 
-### Render HTML An Toàn
+### Transfer-cache: Tránh reuse nhầm response
 
 ```typescript
-import { Component, signal } from '@angular/core';
+// Hai request này trước v22 serialize trùng key `role=user,admin` — nay đã tách đúng
+this.http.get('/api/resource', {
+  params: new HttpParams().set('role', 'user,admin')
+});
 
-@Component({
-  selector: 'app-rich-content',
-  template: `
-    <!-- Nếu BẮT BUỘC phải render HTML, hãy sanitize nó đúng cách -->
-    @if (sanitizedContent()) {
-      <div [innerHTML]="sanitizedContent()"></div>
-    }
-  `
-})
-export class RichContentComponent {
-  private sanitizer = inject(DomSanitizer);
-  
-  // Xử lý nội dung qua một whitelist
-  sanitizedContent = computed(() => {
-    const raw = this.rawHtml();
-    return this.sanitizer.bypassSecurityTrustHtml(
-      this.stripDangerousTags(raw)
-    );
-  });
-  
-  rawHtml = signal('<p>Hello <b>World</b></p>');
-  
-  private stripDangerousTags(html: string): string {
-    // Loại bỏ script tags và event handlers
-    return html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/on\w+="[^"]*"/gi, '')
-      .replace(/javascript:/gi, '');
-  }
-}
+this.http.get('/api/resource', {
+  params: new HttpParams().append('role', 'user').append('role', 'admin')
+});
+
+// Endpoint nhạy cảm: có thể tắt cache riêng lẻ
+this.http.get('/api/resource', { transferCache: false });
 ```
 
-### Checklist Best Practices Bảo Mật
+### Validate URL trước khi gắn credentials (SSR)
 
 ```typescript
-// ✅ NÊN LÀM: Dùng sanitization tích hợp sẵn của Angular
-@Component({
-  template: `
-    <!-- Được Angular tự động sanitize -->
-    <div [innerHTML]="userContent"></div>
-    <img [src]="imageUrl" />
-    <a [href]="linkUrl"></a>
-  `
-})
-
-// ❌ KHÔNG NÊN: Bypass bảo mật mà không có lý do chính đáng
-@Component({
-  template: `
-    <!-- Chỉ dùng bypassSecurity khi thật sự cần thiết -->
-    <div [innerHTML]="bypassedHtml"></div>
-  `
-})
+// Kẻ tấn công chèn leading Unicode whitespace (U+00A0) để qua mặt new URL() check
+// nhưng platform-server trim khác WHATWG → thành //attacker.example/collect
+const target = new URL(input, trustedOrigin);
+if (target.origin !== trustedOrigin.origin) {
+  throw new Error('Cross-origin request blocked');
+}
+// Nên strip leading unicode whitespace + validate input trước khi clone headers Authorization
 ```
 
-## Ma Trận Bảo Mật
+## Ma Trận Bảo Mật (v22)
 
-| Thuộc tính | Tự động sanitize | Cảnh báo bypass |
-|----------|---------------|----------------|
-| `[innerHTML]` | ✅ Làm sạch XSS | ⚠️ Có |
-| `[src]` | ✅ Xác thực URL | ⚠️ Có |
-| `[href]` | ✅ Xác thực URL | ⚠️ Có |
-| `[style]` | ✅ Làm sạch CSS | ⚠️ Có |
-| `[attr]` | ✅ Làm sạch attribute | ⚠️ Có |
+| Khu vực | Thay đổi v22 |
+|----------|-------------|
+| SVG `<a>` `[href]`/`xlink:href` động | ✅ Sanitize như HTML `<a>` |
+| Sanitization schema (core ↔ compiler) | ✅ Đồng bộ, lookup không phân biệt prefix/case, validate i18n attr lúc compile |
+| SSR `parseUrl` backslash URL | ✅ Chặn `//evil.com`, `/\evil.com` override hostname |
+| SSR URL resolution + credentials | ✅ Không còn trim lệch gây rò `Authorization` ra attacker origin |
+| `HttpTransferCache` key | ✅ Phân biệt scalar-comma vs repeated-params |
+| `Host`/`Forwarded` headers | ✅ Validate strict, strip mặc định trừ khi `trustProxyHeaders` |
 
 ## Tham khảo
-- [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)
+- [Angular v22 changelog — sanitize dynamic href on SVG a, synchronize sanitization schema, prefix-insensitive lookups](https://github.com/angular/angular/releases/tag/v22.0.0)
+- [GHSA SSRF via backslash URLs (platform-server)](https://github.com/angular/angular/security/advisories/GHSA-45q2-gjvg-7973)
+- [GHSA SSRF + credential disclosure via URL resolution discrepancy](https://github.com/angular/angular/security/advisories/GHSA-f6mr-pjwc-34m4)
+- [GHSA HttpTransferCache cache-key ambiguity](https://github.com/angular/angular/security/advisories/GHSA-jhpw-976m-542j)

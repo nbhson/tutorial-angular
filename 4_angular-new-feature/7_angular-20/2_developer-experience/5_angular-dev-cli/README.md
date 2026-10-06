@@ -1,26 +1,26 @@
-# 5. angular.dev CLI (Angular 20)
+# 5. CLI trong v20 (đã hiệu chỉnh — KHÔNG có `ng analyze` / `ng performance`)
 
-## Tổng quan
+> Đính chính toàn file: **KHÔNG có `ng analyze` / `ng performance` / `generate --mock`**.
+> CLI thật trong v20: schematic **`--zoneless`**, **template HMR default**,
+> `ng update @angular/core @angular/cli`, `TestBed.tick()` cho zoneless tests.
 
-Angular 20 giới thiệu **Angular Dev CLI** — CLI tools mới tích hợp sẵn trong `angular.dev`, hỗ trợ generate, migrate, và analyze Angular projects. Đây là cải tiến lớn cho developer workflow.
-
-## Commands mới
+## Commands đúng (v20)
 
 ```bash
-# Generate component mới
+# Tạo app/component zoneless (schematic --zoneless mới v20):
+ng new my-app --zoneless
 ng generate component my-component
 
-# Generate service mới
-ng generate service my-service
+# HMR template đã default trong v20 (không cần flag riêng)
 
-# Analyze project bundle
-ng analyze
-
-# Migrate project lên Angular 20
+# Migrate project lên v20:
 ng update @angular/core @angular/cli
+
+# Dry run:
+ng update @angular/core --dry-run
 ```
 
-## Tại sao cần feature này?
+## Tại sao cần?
 
 | Vấn đề | Giải thích |
 |---|---|
@@ -60,34 +60,7 @@ src/app/features/admin/dashboard/
 └── dashboard.component.routes.ts
 ```
 
-### 2. Generate Service
-
-```bash
-# Generate service
-ng generate service services/user
-
-# Generate service với mock
-ng generate service services/user --mock
-```
-
-### 3. Analyze Bundle
-
-```bash
-# Analyze bundle size
-ng analyze
-
-# Kết quả:
-# main.js: 250KB (gzip: 85KB)
-# vendor.js: 400KB (gzip: 130KB)
-# Total: 650KB (gzip: 215KB)
-
-# Chi tiết từng module:
-# @angular/core: 120KB
-# @angular/router: 45KB
-# rxjs: 35KB
-```
-
-### 4. Migration
+### 2. Migrate lên v20 (thật)
 
 ```bash
 # Upgrade Angular project
@@ -95,25 +68,20 @@ ng update @angular/core @angular/cli
 
 # Dry run trước
 ng update @angular/core --dry-run
-
-# Migrate với preview
-ng update @angular/core --preview
 ```
 
-### 5. Performance Analysis
+### 3. Test zoneless với `TestBed.tick()` (mới quanh v20)
 
-```bash
-# Analyze performance
-ng performance
+```typescript
+// Trong zoneless tests, dùng TestBed.tick() để flush effects/render:
+import { TestBed } from '@angular/core/testing';
 
-# Kết quả:
-# - Change detection time: 15ms
-# - Render time: 50ms
-# - Bundle size: 650KB
-# - Suggestions:
-#   + Use OnPush change detection
-#   + Lazy load routes
-#   + Use signals for state management
+it('updates zoneless', async () => {
+  const fixture = TestBed.createComponent(CounterComponent);
+  fixture.componentRef.setInput('count', 1);
+  TestBed.tick(); // flush thay vì fixture.detectChanges()/auto-detect
+  expect(fixture.nativeElement.textContent).toContain('1');
+});
 ```
 
 ## Flow chi tiết
@@ -140,10 +108,10 @@ Component sẵn sàng sử dụng
 ## Best practices
 
 1. **Dùng `ng generate`** thay vì tạo files thủ công
-2. **Run `ng analyze`** thường xuyên để monitor bundle size
-3. **Use `ng update`** để upgrade an toàn
-4. **Test migration** trước với `--dry-run`
-5. **Monitor performance** với `ng performance`
+2. **Dùng `--zoneless`** cho project mới muốn thử zoneless preview
+3. **Use `ng update`** để upgrade an toàn (+ `--dry-run` trước)
+4. **Dùng `TestBed.tick()`** cho zoneless tests
+5. ❌ Không dùng `ng analyze` / `ng performance` — không tồn tại
 
 ## Chạy thử
 
@@ -151,8 +119,6 @@ Component sẵn sàng sử dụng
 # Generate component
 ng generate component demo
 
-# Analyze bundle
-ng analyze
-
-# Check performance
-ng performance
+# Tạo app zoneless (mới v20)
+ng new my-app --zoneless
+```

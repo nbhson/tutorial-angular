@@ -24,7 +24,9 @@ Thay đổi `angular.json`:
 
 ## So sánh Build Time
 
-| Feature | Webpack | esBuild |
+> Bảng dưới là minh họa, không phải benchmark official (official không đưa số).
+
+| Feature | Webpack (minh họa) | esBuild (minh họa) |
 |---------|---------|---------|
 | Dev server start | 35s | 12s |
 | Production build | 180s | 45s |
@@ -67,10 +69,8 @@ $primary-color: #1976d2;
 ### Watch Mode
 
 ```bash
-# Dev server với watch
-ng serve --watch
-
-# Build với watch
+# Cái mới trong v15 là ng build --watch với esbuild
+# (ng serve vốn đã watch mặc định)
 ng build --watch
 ```
 
@@ -79,18 +79,16 @@ ng build --watch
 ```
 Traditional Webpack:
   Source → Webpack → Bundle → Output
-  (Slow: 35s start)
 
-esBuild:
+esBuild (experimental trong v15 – hãy thử cho dev, check plugins):
   Source → esBuild → Bundle → Output
-  (Fast: 12s start)
 ```
 
 ## Best Practices
 
 1. **Thử cho dev workflow** – Faster iteration
-2. **Kiểm tra compatibility** – Một số plugins có thể chưa hỗ trợ
-3. **Production ready** – Đã ổn định cho production builds
+2. **Kiểm tra compatibility** – Một số plugins/i18n/workers có thể chưa hỗ trợ (v15 vẫn experimental)
+3. **Chưa production-default trong v15** – Đừng coi là stable; check kỹ trước khi migrate
 4. **So sánh bundle size** – Kiểm tra trước khi migrate
 
 ---

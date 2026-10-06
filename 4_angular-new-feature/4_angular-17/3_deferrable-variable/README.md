@@ -2,6 +2,8 @@
 
 ## Tổng quan
 
+> Note: folder `3_deferrable-variable` đúng ra nên là `deferrable-views` (theo tên `@defer` / deferrable views) — giữ nguyên tên để tránh break link.
+
 `@defer` là một cú pháp template mới trong Angular 17 cho phép lazy loading các components ngay trong template — một bước tiến lớn so với router-based lazy loading. Thay vì phải lazy load cả một route, bạn có thể defer load từng component cụ thể dựa trên triggers như viewport, interaction, hover, timer...
 
 ## Cấu trúc files
@@ -238,18 +240,21 @@ export class AppComponent {
 - `@defer` chỉ hỗ trợ **standalone components**
 - Components trong `@placeholder` và `@loading` vẫn được **eager loaded**
 - `@defer` ≠ `@if`: một khi đã render, không thể ẩn lại bằng `@defer`
-- Nếu cần ẩn/hiện, kết hợp cả hai:
+- Nếu cần ẩn/hiện, kết hợp cả hai (sibling đúng — không lồng `@placeholder` vào trong `@if`):
 
 ```html
-@defer (on interaction; prefetch on viewport) {
+@defer (on interaction) {
   @if (someCondition) {
     <large-component />
   }
-  @placeholder {
-    <placeholder-component />
-  }
+} @placeholder {
+  <placeholder-component />
 }
 ```
+
+- `on viewport` cần `@placeholder` hoặc template ref (`#ref` + `on viewport(ref)`) để làm target quan sát
+- `prefetch` chỉ tải bundle (fetch), còn trigger chính mới render — tách biệt fetch/render để tối ưu UX
+- Testing: dùng `withDeferBlockBehavior(DeferBlockBehavior.Manual)` trong TestBed để control thủ công
 
 ## Cách sử dụng
 

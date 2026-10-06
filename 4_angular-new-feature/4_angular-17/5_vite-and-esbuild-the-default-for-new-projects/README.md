@@ -21,19 +21,20 @@ Trước Angular 17, Vite + esBuild chỉ ở developer preview (từ Angular 16
 
 ### Build Time (`ng build`)
 
-- **SSR & SSG**: Lên đến **87% nhanh hơn** so với旧 webpack builder
-- **Enterprise partners**: Báo cáo **67% build time improvement** trong production apps
+> Số liệu từ blog v17 — theo ngữ cảnh, không phải mọi build:
+- **Hybrid SSR/SSG demo app của team**: lên đến **87% nhanh hơn** so với Cũ webpack builder
+- **Enterprise partners**: báo cáo **67% build time improvement** trong production apps
 
 ### Dev Server (`ng serve`)
 
-- **Edit-refresh loop**: **80% nhanh hơn** so với旧 builder
+- **Edit-refresh loop**: nhanh hơn đáng kể so với Cũ builder
 - **HMR (Hot Module Replacement)**: Gần như instant
 
 ## So sánh Builder
 
-| Feature |旧 Builder (webpack) | New Builder (Vite + esBuild) |
+| Feature | Cũ Builder (webpack) | New Builder (Vite + esBuild) |
 |---------|---------------------|------------------------------|
-| Build time | Baseline | ~67-87% faster |
+| Build time | Baseline | Nhanh hơn (87% hybrid SSR/SSG demo, 67% enterprise reports — theo blog v17) |
 | Dev server | HMR chậm hơn | HMR gần như instant |
 | SSR | Phức tạp | Built-in support |
 | Bundle | Không tối ưu | Tree-shaking tốt hơn |
@@ -49,7 +50,7 @@ ng new my-app
 cat angular.json | grep builder
 # "builder": "@angular-devkit/build-angular:application"
 
-#旧 builder (webpack) sẽ hiển thị:
+# Cũ builder (webpack) sẽ hiển thị:
 # "builder": "@angular-devkit/build-angular:browser"
 ```
 
@@ -80,7 +81,7 @@ cat angular.json | grep builder
 }
 ```
 
-###旧 Builder (webpack) — Deprecated
+### Cũ Builder (webpack) — Deprecated
 
 ```json
 {
@@ -99,7 +100,7 @@ cat angular.json | grep builder
 
 ## Migration
 
-Angular sẽ cung cấp schematics tự động migrate projects hiện tại sang builder mới trong tương lai. Tuy nhiên, hiện tại bạn có thể migrate thủ công:
+> Schematic `ng g @angular/core:build-system-migration` có từ v18 để migrate tự động. Có thể migrate thủ công:
 
 ```bash
 # 1. Cập nhật angular.json
@@ -114,14 +115,16 @@ Angular sẽ cung cấp schematics tự động migrate projects hiện tại sa
 
 ## Lưu ý khi Migration
 
-1. **esBuild không hỗ trợ some metadata decorators** — Kiểm tra第三方 libraries
+1. **esBuild không hỗ trợ some metadata decorators** — Kiểm tra third-party libraries
 2. **CommonJS modules** — esBuild ưu tiên ESM, một số packages cần update
 3. **Sass/SCSS** — Hỗ trợ đầy đủ nhưng có thể có subtle differences
 4. **Source maps** — Format source maps có thể khác webpack
 
+> Phân biệt builder: `browser-esbuild` (v16 developer preview, output browser-only) vs `application` (v17 default, browser + server/SSR).
+
 ## Lợi ích tổng thể
 
-1. **Speed** — Build nhanh hơn 67-87%, HMR instant
+1. **Speed** — Build nhanh hơn (87% hybrid SSR/SSG demo, 67% enterprise reports — theo blog v17), HMR instant
 2. **SSR** — Built-in SSR support, không cần config phức tạp
 3. **Tree-shaking** — Better bundle optimization
 4. **DX** — Dev experience mượt mà hơn

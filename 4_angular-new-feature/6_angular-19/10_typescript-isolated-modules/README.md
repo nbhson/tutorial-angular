@@ -1,5 +1,7 @@
 # 10. TypeScript Isolated Modules Support
 
+> Ghi chú version: feature này có từ **v18.2, không phải new v19** — tài liệu này nằm trong series v19 vì v19 kế thừa và khuyến nghị bật mặc định cho project mới.
+
 ## Mô tả
 
 Angular hỗ trợ `isolatedModules` trong TypeScript compiler options. Khi bật, TypeScript code sẽ được transpile qua **esbuild bundler** thay vì TypeScript compiler trực tiếp — dẫn đến **performance boost lên đến 10%** trong production build times.
@@ -103,10 +105,8 @@ export default class AppComponent {
 ### Bước 3: Kiểm tra TypeScript errors
 
 ```bash
-# Run type checking separately
-ng build --type-check
-
-# Or
+# Run type checking — isolatedModules chỉ transpile, không type-check
+# nên phải chạy riêng:
 tsc --noEmit
 ```
 
@@ -148,7 +148,7 @@ export const status = Status.Active;
 
 ## Lưu ý quan trọng
 
-- **Type checking**: `isolatedModules` KHÔNG thay thế type checking. Vẫn cần chạy `tsc --noEmit` hoặc `ng build --type-check` riêng
+- **Type checking**: `isolatedModules` KHÔNG thay thế type checking. Vẫn cần chạy `tsc --noEmit` riêng (không có lệnh `ng build --type-check`)
 - **Source maps**: Khi bật script sourcemaps + isolatedModules, sourcemap behavior có thể khác
 - **Third-party libraries**: Các library code vẫn được xử lý qua Babel, không thay đổi
 

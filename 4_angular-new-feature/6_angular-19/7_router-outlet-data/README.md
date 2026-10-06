@@ -57,7 +57,11 @@ import { ROUTER_OUTLET_DATA } from '@angular/router';
 
 @Component({...})
 export class ChildComponent {
-  readonly routerOutletData: Signal<MyType> = inject(ROUTER_OUTLET_DATA);
+  // Ép kiểu as Signal — khi outlet cha không set [routerOutletData],
+  // ROUTER_OUTLET_DATA sẽ là null/undefined nên cần xử lý fallback
+  readonly routerOutletData = inject(ROUTER_OUTLET_DATA) as Signal<MyType>;
+  // Hoặc an toàn hơn khi data có thể unset:
+  // readonly routerOutletData = inject(ROUTER_OUTLET_DATA, { optional: true }) as Signal<MyType | undefined> | null;
 }
 ```
 
@@ -138,10 +142,11 @@ Child component inject() → nhận Signal data
 | Đặc điểm | Mô tả |
 |-----------|-------|
 | **Signal-based** | Data truyền qua là reactive Signal |
-| **Type-safe** | TypeScript generic support |
+| **Type-safe** | TypeScript generic support (nhớ ép kiểu `as Signal<T>`) |
 | **Dynamic** | Data tự động update khi signal thay đổi |
 | **Decoupled** | Child không cần biết parent là ai |
 | **No shared service** | Không cần Injectable service để share data |
+| **Unset behavior** | Nếu parent không bind `[routerOutletData]`, `ROUTER_OUTLET_DATA` là `null`/`undefined` — child cần check hoặc dùng `optional: true` |
 
 ## So sánh với approaches khác
 

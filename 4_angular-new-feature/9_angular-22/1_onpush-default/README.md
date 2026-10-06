@@ -37,16 +37,19 @@ export class Counter {
 export class Legacy {}
 ```
 
-### Cấu hình app zoneless
+### Cấu hình app zoneless (v21+ đã là default, không cần provider)
 
 ```typescript
-// app.config.ts
+// app.config.ts — zoneless đã là default từ v21, app mới không cần thêm provider.
+// Chỉ khi còn ở v20 mới cần gọi provideZonelessChangeDetection() explicitly.
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideExperimentalZonelessChangeDetection()
+    provideRouter(routes),
   ]
 };
 ```
+
+> ℹ️ Zoneless ổn định từ v20.2 và thành default cho app mới từ v21 (xem `8_angular-21/2_zoneless-default`). Sang v22, thay đổi thêm là **OnPush thành default** — hai khái niệm bổ trợ nhau: zoneless loại bỏ zone.js làm trigger, OnPush quyết định view nào được check.
 
 ## Vì Sao Điều Này Quan Trọng
 
@@ -72,4 +75,6 @@ Sau khi migration, tìm kiếm `Eager` trong codebase để xác định các co
 ```
 
 ## Tham khảo
-- [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)
+- [Angular v22 changelog — Set default Component changeDetection strategy to OnPush](https://github.com/angular/angular/releases/tag/v22.0.0)
+- [What's new in Angular 22.0? — Ninja Squad (OnPush by default)](https://blog.ninja-squad.com/2026/06/03/what-is-new-angular-22.0)
+- [Angular 22 Announcement — blog.angular.dev](https://blog.angular.dev/announcing-angular-v22-c52bb83a4664)

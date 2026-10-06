@@ -1,18 +1,18 @@
-# linkedSignal Có Phương Thức `.set()` Trực Tiếp
+# linkedSignal: Thêm Option `set` Tùy Biến
 
 ## Tổng quan
-Angular 22 thêm phương thức `.set()` trực tiếp cho `linkedSignal` — không còn phải gọi `.set()` thông qua `.asReadonly()` hoặc viết những cách làm vòng vo. Giờ bạn có thể đọc và ghi một linked signal từ bất cứ đâu cần.
+Đính chính quan trọng: `linkedSignal` **đã writable từ trước** (có `.set()`/`.update()` từ lúc ra mắt) — không phải v22 mới thêm. Thay đổi thật trong Angular 22 là thêm option **`set` tùy biến** trong options, cho phép chặn (override) hành vi ghi mặc định để viết ngược (write back) về source of truth.
 
 ## Tính năng chính
 
-- **Phương thức `.set()` trực tiếp**: Không còn cần cách làm vòng vo
-- **Writable theo mặc định**: `linkedSignal` giờ vừa đọc được vừa ghi được
-- **Tương thích ngược**: Cách dùng `linkedSignal` hiện có vẫn hoạt động
-- **Code gọn hơn**: Loại bỏ boilerplate cho các pattern ghi
+- **Đã writable từ trước**: `linkedSignal` luôn trả về `WritableSignal` — `.set()`, `.update()`, `.asReadonly()` đều có sẵn
+- **Mới trong v22: option `set`**: `linkedSignal(computation, { set })` hoặc `linkedSignal({ source, computation, set })`
+- **Signature**: `set: (value, rawSet) => void` — `rawSet` là setter mặc định để ghi trực tiếp khi cần
+- **Use case**: Convert ngược (Fahrenheit → Celsius), update property lồng trong parent object, tránh `effect` đồng bộ 2 signals gây cycle
 
 ## Ví dụ Code
 
-### linkedSignal cơ bản với `.set()`
+### linkedSignal vốn đã `.set()` được từ trước
 
 ```typescript
 import { Component, signal, linkedSignal } from '@angular/core';
@@ -27,120 +27,96 @@ import { Component, signal, linkedSignal } from '@angular/core';
 })
 export class CounterComponent {
   source = signal(0);
-  
-  // linkedSignal với .set() trực tiếp
+
   counter = linkedSignal(() => this.source());
-  
+
   reset() {
     this.source.set(0); // Thay đổi source, counter tự cập nhật
   }
-  
+
   setToTen() {
-    this.counter.set(10); // Set trực tiếp! Mới trong Angular 22
+    this.counter.set(10); // Đã làm được từ trước v22 — KHÔNG phải mới
+    this.counter.update(v => v + 1); // Cũng có sẵn từ trước
   }
 }
 ```
 
-### Trước Angular 22 (Bắt Buộc Cách Làm Vòng Vo)
+### Mới v22: Custom `set` viết ngược về source
 
 ```typescript
-// Angular 21 - phải dùng các pattern khó xử
-@Component({
-  selector: 'app-old-counter',
-  template: `
-    <h2>Bộ đếm: {{ counter() }}</h2>
-    <button (click)="reset()">Đặt lại</button>
-  `
-})
-export class OldCounterComponent {
-  source = signal(0);
-  
-  // Không có .set() trực tiếp
-  counter = linkedSignal(() => this.source());
-  
-  reset() {
-    this.source.set(0); // Phải sửa source thay vì counter
-  }
-}
-```
+import { signal, linkedSignal } from '@angular/core';
 
-### Liên Kết Hai Chiều với linkedSignal
-
-```typescript
-import { Component, signal, linkedSignal } from '@angular/core';
-
-@Component({
-  selector: 'app-search',
-  template: `
-    <input [value]="searchTerm()" (input)="onInput($event)" />
-    <p>Đang tìm: {{ searchTerm() }}</p>
-    @if (debouncedTerm() !== searchTerm()) {
-      <p>Debounced: {{ debouncedTerm() }} (đang cập nhật...)</p>
-    }
-  `
-})
-export class SearchComponent {
-  searchTerm = signal('');
-  
-  // Được tính từ source, nhưng cũng set trực tiếp được
-  debouncedTerm = linkedSignal(() => this.searchTerm());
-  
-  onInput(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchTerm.set(value);
-    
-    // Debounce: đặt lại sau một khoảng delay
-    setTimeout(() => {
-      this.debouncedTerm.set(value);
-    }, 300);
-  }
-}
-```
-
-### linkedSignal với Options
-
-```typescript
-import { linkedSignal } from '@angular/core';
-
-// Với kiểm tra bằng nhau (equality check)
-const selection = linkedSignal({
-  source: () => this.currentItem(),
-  computation: (item) => ({
-    ...item,
-    selected: true
-  }),
-  equal: (a, b) => a.id === b.id
+const tempC = signal(0);
+// Hiển thị Fahrenheit nhưng source of truth là Celsius
+const tempF = linkedSignal(() => (tempC() * 9) / 5 + 32, {
+  set: (valF) => tempC.set(((valF - 32) * 5) / 9),
 });
 
-// Với hành vi reset
-const formField = linkedSignal({
-  source: () => this.formData(),
-  computation: (data) => ({
-    value: data.defaultValue,
-    touched: false
-  })
+console.log(tempF()); // 32
+
+tempF.set(212); // Ghi F → tự convert ngược về C
+console.log(tempC()); // 100
+console.log(tempF()); // 212
+```
+
+### Custom `set` update property trong parent object
+
+```typescript
+import { signal, linkedSignal } from '@angular/core';
+
+const order = signal({ id: 42, shippingMethod: 'Ground' });
+
+const shippingMethod = linkedSignal(() => order().shippingMethod, {
+  set: (newMethod) => {
+    // Ghi immutable ngược về parent object
+    order.update((current) => ({
+      ...current,
+      shippingMethod: newMethod,
+    }));
+  },
+});
+
+shippingMethod.set('Air'); // Cập nhật parent, không ghi đè local
+console.log(order()); // { id: 42, shippingMethod: 'Air' }
+```
+
+### Dùng `rawSet` khi muốn ghi trực tiếp
+
+```typescript
+const tempF2 = linkedSignal(() => (tempC() * 9) / 5 + 32, {
+  set: (valF, rawSet) => {
+    // Vừa write-back về source, vừa ghi trực tiếp để tránh recompute đắt đỏ
+    tempC.set(((valF - 32) * 5) / 9);
+    rawSet(valF);
+  },
 });
 ```
 
 ## Tham Chiếu API
 
-| Phương thức | Mô tả | Mới trong v22 |
+| Phương thức | Mô tả | Từ khi nào |
 |--------|-------------|------------|
-| `linkedSignal(() => expr)` | Tạo một linked signal có thể ghi | ✅ Thêm `.set()` |
-| `.set(value)` | Đặt giá trị trực tiếp | ✅ **Mới** |
-| `.update(fn)` | Cập nhật qua hàm | ✅ **Mới** |
+| `linkedSignal(() => expr)` | Tạo một linked signal có thể ghi | Có từ trước v22 |
+| `.set(value)` | Đặt giá trị trực tiếp | Có từ trước v22 |
+| `.update(fn)` | Cập nhật qua hàm | Có từ trước v22 |
+| `option set(value, rawSet)` | Tùy biến hành vi ghi, write-back về source | ✅ **Mới v22** |
 | `.asReadonly()` | Lấy phiên bản chỉ đọc | Có sẵn |
 
 ## Migration
 
-Không cần thay đổi gì cho các app hiện có. `.set()` mới hoàn toàn bổ sung thêm:
+Không cần thay đổi gì cho các app hiện có. Option `set` mới hoàn toàn bổ sung thêm — chỉ dùng khi bạn cần write-back về source thay vì ghi đè local:
 
 ```typescript
-// Cả hai pattern đều hoạt động trong Angular 22
+// Pattern cũ vẫn chạy
 const counter = linkedSignal(() => this.source());
-counter.set(10);      // Mới: ghi trực tiếp
-this.source.set(10);  // Có sẵn: vẫn hoạt động
+counter.set(10);
+
+// Pattern mới v22 — khi cần convert ngược / update parent
+const tempF = linkedSignal(() => (tempC() * 9) / 5 + 32, {
+  set: (valF) => tempC.set(((valF - 32) * 5) / 9),
+});
 ```
 
 ## Tham khảo
-- [Angular 22: Key Features and Changes](https://angular.love/angular-22-key-features-and-changes)
+- [Angular v22 changelog — feat(core): add custom set option to linkedSignal](https://github.com/angular/angular/releases/tag/v22.0.0)
+- [Angular 22 Announcement — blog.angular.dev](https://blog.angular.dev/announcing-angular-v22-c52bb83a4664)

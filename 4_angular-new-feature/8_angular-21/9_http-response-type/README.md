@@ -1,36 +1,38 @@
-# 9. HTTP Response Type Safety (Angular 21)
+# 9. HttpResponse / HttpErrorResponse thêm `responseType` (Angular 21)
 
 ## Tổng quan
 
-Angular 21 cải thiện **type safety** cho HTTP responses. Previously, tất cả HTTP responses đều trả về `Observable<HttpEvent<any>>` — không phân biệt success hay error. Từ Angular 21, developer có thể specify **response type chính xác** mà không cần cast.
+> ⚠️ Đính chính: generic `http.get<T>()` **đã có từ lâu** (không phải feature v21). Feature thật của Angular 21 là `HttpResponse` và `HttpErrorResponse` được bổ sung thuộc tính **`responseType`**, giúp **debug CORS / opaque responses** dễ hơn.
+
+Khi browser chặn response do CORS (opaque response), trước đây developer chỉ thấy status `0` và body `null` mà không biết vì sao. Từ Angular 21, `responseType` cho biết response thuộc loại nào: `basic` | `cors` | `opaque` | `opaqueredirect` | `error` (theo Fetch spec).
 
 ## Tại sao cần thay đổi?
 
-### Trước Angular 21
-
 ```typescript
-// HttpEvent<any> — không có type safety
+// Trước Angular 21 — CORS fail chỉ thấy status 0, không rõ nguyên nhân
 this._http.get<User[]>('/api/users', { observe: 'response' })
-  .subscribe((response: HttpResponse<User[]>) => {
-    // response.body — type: User[] (nhưng cần cast)
-    // response.status — type: number
-    // Phải check status thủ công
+  .subscribe({
+    error: (err: HttpErrorResponse) => {
+      console.log(err.status);  // 0 — opaque? network down? CORS?
+      // Không phân biệt được
+    }
   });
 ```
 
-### Sau Angular 21
-
 ```typescript
-// Type-safe response
-this._http.get<User[]>('/api/users')
-  .subscribe((users) => {
-    // users — type: User[] (trực tiếp, không cần cast)
+// Sau Angular 21 — có responseType để phân biệt
+this._http.get<User[]>('/api/users', { observe: 'response' })
+  .subscribe({
+    error: (err: HttpErrorResponse) => {
+      console.log(err.status);       // 0
+      console.log(err.responseType); // 'opaque' | 'cors' | 'basic' | 'error' — biết ngay do CORS
+    }
   });
 ```
 
 ## Ví dụ chi tiết
 
-### Component
+### Component — Debug CORS bằng responseType
 
 ```typescript
 @Component({
@@ -61,13 +63,18 @@ export class UsersComponent {
   ngOnInit() {
     this.loading.set(true);
 
-    this._http.get<User[]>('/api/users').subscribe({
-      next: (users) => {
-        this.users.set(users);     // type: User[]
+    this._http.get<User[]>('/api/users', { observe: 'response' }).subscribe({
+      next: (res: HttpResponse<User[]>) => {
+        this.users.set(res.body ?? []);
+        console.log(res.responseType); // 'basic' | 'cors' — response hợp lệ
         this.loading.set(false);
       },
-      error: (err) => {
-        this.error.set(err.message);
+      error: (err: HttpErrorResponse) => {
+        if (err.responseType === 'opaque' || err.responseType === 'opaqueredirect') {
+          this.error.set('Bị chặn bởi CORS (opaque response) — kiểm tra Access-Control-Allow-Origin ở server.');
+        } else {
+          this.error.set(err.message);
+        }
         this.loading.set(false);
       }
     });
@@ -75,76 +82,24 @@ export class UsersComponent {
 }
 ```
 
-### POST với Type Safety
+### Các giá trị responseType (theo Fetch spec)
 
-```typescript
-// POST request — type-safe
-createUser(user: CreateUserDto): Observable<User> {
-  return this._http.post<User>('/api/users', user);
-  // Response type: User — không cần cast
-}
-
-// PUT request — type-safe
-updateUser(id: string, data: Partial<User>): Observable<User> {
-  return this._http.put<User>(`/api/users/${id}`, data);
-  // Response type: User
-}
-
-// DELETE request — type-safe
-deleteUser(id: string): Observable<void> {
-  return this._http.delete<void>(`/api/users/${id}`);
-  // Response type: void
-}
-```
-
-### HttpResponse vs HttpEvent
-
-```typescript
-// observe: 'response' — trả về HttpResponse<T>
-this._http.get<User[]>('/api/users', { observe: 'response' })
-  .subscribe((response: HttpResponse<User[]>) => {
-    console.log(response.status);   // 200
-    console.log(response.body);     // User[]
-  });
-
-// observe: 'events' — trả về HttpEvent<T>
-this._http.get<User[]>('/api/users', { observe: 'events' })
-  .subscribe((event: HttpEvent<User[]>) => {
-    if (event.type === HttpEventType.Response) {
-      console.log(event.body);      // User[]
-    }
-  });
-```
-
-## So sánh trước và sau
-
-### Trước Angular 21
-
-```typescript
-// Cần type assertion thủ công
-this._http.get('/api/users').subscribe((response: any) => {
-  const users = response as User[];  // ← Không type-safe
-  console.log(users);
-});
-```
-
-### Sau Angular 21
-
-```typescript
-// Type-safe — không cần assertion
-this._http.get<User[]>('/api/users').subscribe((users) => {
-  console.log(users);  // type: User[]
-});
-```
+| Giá trị | Ý nghĩa |
+|---------|---------|
+| `basic` | Cùng origin — response đầy đủ |
+| `cors` | Cross-origin hợp lệ (server có ACAO header) |
+| `opaque` | Bị chặn — browser giấu body/status vì thiếu CORS header |
+| `opaqueredirect` | Redirect tới opaque response |
+| `error` | Lỗi mạng (network error) |
 
 ## Best Practices
 
-1. **Luôn specify generic type** — `get<User[]>()`, `post<User>()`
-2. **Dùng `observe: 'response'`** khi cần access headers/status
-3. **Xử lý error properly** — Type error responses
-4. **Sử dụng interfaces** cho request/response types
+1. **Dùng `observe: 'response'`** khi cần debug CORS — mới đọc được `responseType`
+2. **Phân biệt `opaque` vs network error** trước khi báo lỗi cho user
+3. **`get<T>` generic vẫn dùng như cũ** — không có gì thay đổi ở v21
 
 ## Tham khảo
 
+- [Angular 21 — What's New — angular.love](https://angular.love/angular-21-whats-new)
 - [Angular 21 Announcement — blog.angular.dev](https://blog.angular.dev/announcing-angular-v21-57946c34f14b)
 - [Angular HttpClient Guide](https://angular.dev/guide/http/making-requests)

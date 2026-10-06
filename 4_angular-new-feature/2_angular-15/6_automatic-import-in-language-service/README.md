@@ -1,10 +1,12 @@
 # Automatic Import in Language Service (Angular 15)
 
-> Angular Language Service tự động thêm imports khi bạn sử dụng components/directives/pipes trong template.
+> Phạm vi v15 (official blog): tự động import **components** dùng trong template nhưng chưa thêm vào
+> `standalone component` hoặc `NgModule`. Directive/pipe auto-import hoàn thiện ở bản sau.
+> Cần VS Code Angular Language Service + standalone/NgModule context.
 
 ## Tổng quan
 
-Trước Angular 15, khi thêm component mới vào template, bạn phải tự import manually. Giờ đây, Language Service tự động detect và suggest imports.
+Trước Angular 15, khi thêm component mới vào template, bạn phải tự import manually. Giờ đây, Language Service tự động detect và suggest imports (v15: cho components).
 
 ## Ví dụ
 
@@ -48,16 +50,14 @@ export class ProductListComponent { }
 <!-- Language Service suggest imports -->
 ```
 
-### 2. Directive Auto-import
+### 2. Directive Auto-import (mở rộng sau v15)
 
 ```html
-<!-- Sử dụng directive mới -->
+<!-- Từ bản sau mới hoàn thiện; v15 tập trung components -->
 <div *ngIf="show" appHighlight>Content</div>
-
-<!-- Auto-import CommonModule, HighlightDirective -->
 ```
 
-### 3. Pipe Auto-import
+### 3. Pipe Auto-import (mở rộng sau v15)
 
 ```html
 <!-- Sử dụng pipe mới -->

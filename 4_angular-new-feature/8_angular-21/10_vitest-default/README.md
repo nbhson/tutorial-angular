@@ -47,7 +47,10 @@ ng new my-app
 ### Migration từ Jasmine/Karma
 
 ```bash
-ng generate @angular/core:vitest
+# Schematic chính thức (tên đúng):
+ng generate @schematics/angular:refactor-jasmine-vitest
+# alias tương đương trên một số version CLI:
+# ng generate @schematics/angular:karma-to-vitest
 ```
 
 ## Ví dụ
@@ -111,49 +114,53 @@ describe('UserService', () => {
 });
 ```
 
-### Vitest Config
+### Vitest Config (Angular builder chính thức)
+
+Từ Angular 21, Vitest chạy qua builder **`@angular/build:unit-test`** (không cần plugin `@analogjs/vitest-angular` thủ công cho project mới). Cấu hình test nằm trong `angular.json` qua `runnerConfig`:
+
+```json
+// angular.json (minh họa)
+{
+  "projects": {
+    "my-app": {
+      "architect": {
+        "unit-test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "runnerConfig": "vitest.config.ts",
+            "tsConfig": "tsconfig.spec.json"
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ```typescript
-// vitest.config.ts
+// vitest.config.ts — runnerConfig tối giản
 import { defineConfig } from 'vitest/config';
-import angular from '@analogjs/vitest-angular';
 
 export default defineConfig({
-  plugins: [angular()],
   test: {
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-    },
   },
 });
 ```
+
+> ℹ️ Các project dùng `@analogjs/vitest-angular` trước đây vẫn chạy, nhưng project mới nên dùng builder `@angular/build:unit-test` + `runnerConfig` theo [blog v21](https://blog.angular.dev/announcing-angular-v21-57946c34f14b).
 
 ## Migration
 
-### Bước 1 — Cài đặt Vitest
+### Bước 1 — Chạy schematic chính thức
 
 ```bash
-npm install -D vitest @analogjs/vitest-angular
+ng generate @schematics/angular:refactor-jasmine-vitest
 ```
 
-### Bước 2 — Tạo vitest.config.ts
-
-```typescript
-import { defineConfig } from 'vitest/config';
-import angular from '@analogjs/vitest-angular';
-
-export default defineConfig({
-  plugins: [angular()],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-  },
-});
-```
+Schematic tự cài deps, sinh `runnerConfig`, gắn builder `@angular/build:unit-test` vào `angular.json`.
 
 ### Bước 3 — Cập nhật package.json scripts
 

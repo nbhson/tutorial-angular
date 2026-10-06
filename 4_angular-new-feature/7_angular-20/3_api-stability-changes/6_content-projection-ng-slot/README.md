@@ -1,8 +1,34 @@
-# 6. Content Projection với ng-slot (Angular 20)
+# 6. Content Projection (⚠️ INVENTED — KHÔNG có `ng-slot`)
 
-## Tổng quan
+> Đính chính toàn file: **KHÔNG có `ng-slot` trong Angular 20**.
+> Docs chính thức vẫn là **`ng-content` + fallback** (`<ng-content select="...">`,
+> default content qua nhiều `ng-content` / `@if`).
+> Mọi ví dụ `<ng-slot name="...">`, `[props]`, `let-item` dưới đây (bản gốc) là **invented**,
+> giữ lại chỉ để đối chiếu sai/đúng — KHÔNG dùng trong code thật.
 
-Angular 20 giới thiệu `ng-slot` — cách mới để **content projection** trong components, thay thế `ng-content`. `ng-slot` hỗ trợ **named slots**, **default content**, và **slot props** — mô hình tương tự Web Components `<slot>`.
+## Cách đúng (vẫn `ng-content`)
+
+```html
+<!-- Child: named projection + fallback -->
+<div class="card">
+  <ng-content select="[header]">Default Header</ng-content>
+  <ng-content>Default Body</ng-content>
+  <ng-content select="[footer]">
+    <button>Close</button>
+  </ng-content>
+</div>
+
+<!-- Parent -->
+<app-card>
+  <div header>Custom Header</div>
+  <p>Body content</p>
+  <div footer>Custom Footer</div>
+</app-card>
+```
+
+## Nội dung gốc (INVENTED — chỉ để đối chiếu, đừng copy)
+
+> Từ đây trở xuống là nội dung gốc sai (giữ nguyên để thấy đã invented):
 
 ## API mới
 
@@ -250,13 +276,11 @@ Angular check: Parent có slot "header"?
 - ✅ Code rõ ràng hơn
 - ✅ Type-safe slot props
 
-## Best practices
+## Best practices (đúng — không dùng `ng-slot`)
 
-1. **Dùng `ng-slot`** thay `ng-content` cho components mới
-2. **Set default content** trong `<ng-slot>`
-3. **Dùng named slots** cho layout components
-4. **Slot props** để share data parent-child
-5. **Keep slots simple** — avoid complex logic
+1. **Dùng `ng-content` + fallback** (KHÔNG có `ng-slot`)
+2. **Dùng `select="[header]"`** cho named projection
+3. ❌ Không dùng `<ng-slot>`, `[props]`, `let-item` — đều invented
 
 ## Chạy thử
 

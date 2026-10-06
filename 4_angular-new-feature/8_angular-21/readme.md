@@ -46,8 +46,15 @@ Cải thiện nhỏ nhưng ý nghĩa cho daily coding:
 
 | # | Feature | Mô tả |
 |---|---------|-------|
-| 1 | [KeyValue Pipe — Optional Keys](8_keyvalue-optional-keys/) | `KeyValuePipe` cho phép key và value là optional |
-| 2 | [HTTP Response Type Safety](9_http-response-type/) | Type-safe HTTP responses — không cần cast |
+| 1 | [KeyValue Pipe — Optional Keys](8_keyvalue-optional-keys/) | `KeyValuePipe` cải thiện typing cho object có optional keys (`Partial<T>`) |
+| 2 | [HTTP Response Type Safety](9_http-response-type/) | `HttpResponse`/`HttpErrorResponse` thêm `responseType` (`basic`/`cors`/`opaque`...) để debug CORS |
+
+### VI. Bổ Sung Đáng Chú Ý (v21)
+
+| # | Feature | Mô tả |
+|---|---------|-------|
+| 1 | MCP Server stable | Angular MCP Server lên stable — AI agent tra cứu API, docs, best practices trực tiếp từ IDE |
+| 2 | `FetchBackend` (chưa default) | `withFetch()` cho HttpClient đã có, nhưng **chưa phải default** — sang v22 mới thành default (xem `9_angular-22`) |
 
 ## ĐÁNH GIÁ TỔNG QUAN
 

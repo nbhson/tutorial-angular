@@ -54,12 +54,12 @@ export class AppComponent {
 - `styles` — String thay vì array: `` styles: `h2 { color: red; }` `` thay vì `` styles: [`h2 { color: red; }`] ``
 - `styleUrl` — String thay vì array: `styleUrl: './app.component.scss'` thay vì `styleUrls: ['./app.component.scss']`
 
-## So sánh旧 vs New
+## So sánh Cũ vs Mới
 
 ### Inline Styles
 
 ```ts
-//旧 syntax — array (vẫn support)
+// Cũ syntax — array (vẫn support)
 @Component({
   styles: [`
     h2 {
@@ -83,7 +83,7 @@ export class AppComponent {
 ### External Stylesheets
 
 ```ts
-//旧 syntax — array (vẫn support)
+// Cũ syntax — array (vẫn support)
 @Component({
   styleUrls: ['styles.css']
 })
@@ -105,7 +105,7 @@ export class AppComponent {
 
 ## Bảng so sánh
 
-|旧 Syntax | New Syntax | Khi nào dùng |
+| Cũ Syntax | New Syntax | Khi nào dùng |
 |-----------|------------|---------------|
 | `` styles: [`...`] `` | `` styles: `...` `` | Chỉ 1 inline style block |
 | `styleUrls: ['file.css']` | `styleUrl: 'file.css'` | Chỉ 1 external stylesheet |
@@ -116,15 +116,17 @@ export class AppComponent {
 1. **Gọn hơn** — Bỏ square brackets không cần thiết
 2. **Intuitive hơn** — String cho single value, array cho multiple values
 3. **Better formatting** — Automated formatting tools hoạt động tốt hơn với string
-4. **Backward compatible** —旧 syntax vẫn hoạt động
+4. **Backward compatible** — Cũ syntax vẫn hoạt động
 
 ## Lưu ý quan trọng
 
 1. **`styleUrl`** (không có s) — Chỉ 1 file, dùng string
 2. **`styleUrls`** (có s) — Nhiều files, dùng array
 3. **`styles`** (không có s ở cuối) — Inline styles, có thể dùng string hoặc array
-4. **Vẫn tương thích** —旧 array syntax vẫn hoạt động bình thường
+4. **Vẫn tương thích** — Cũ array syntax vẫn hoạt động bình thường
 5. **Angular 17+** — Tính năng này chỉ có từ Angular 17 trở đi
+
+> Note: chỉ `styleUrl`/`styles` có singular form. `templateUrl` không có `template` singular tương ứng — vẫn dùng `templateUrl` + `template` như cũ.
 
 ## Cách sử dụng
 

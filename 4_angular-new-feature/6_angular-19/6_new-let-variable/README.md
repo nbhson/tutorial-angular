@@ -71,7 +71,7 @@ import { of } from 'rxjs';
     }
   `,
   imports: [AsyncPipe],
-  standalone: true,
+  standalone: true, // từ v19 standalone:true là default cho component/directive/pipe mới — ghi explicit vẫn hợp lệ nhưng không bắt buộc
 })
 export class AppComponent {
   user$ = of({
@@ -146,6 +146,8 @@ export class AppComponent {
 - **Complex expressions** — tránh repeat expression nhiều lần
 - **Conditional templates** — kết hợp `@if` / `@for`
 - **Performance** — tránh evaluate expression nhiều lần
+
+> Lưu ý v19: `standalone: true` là default từ v19 cho component/directive/pipe mới tạo (xem [Angular 19 Release Blog](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)). Demo trên vẫn ghi `standalone: true` explicit để tương thích ngược, nhưng với project v19+ bạn có thể bỏ field này.
 
 ## Reference
 

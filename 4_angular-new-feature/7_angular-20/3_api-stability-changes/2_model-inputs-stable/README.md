@@ -1,8 +1,10 @@
-# 2. Model Inputs Stable (Angular 20)
+# 2. Model Inputs (`model()`) — đã stable TRƯỚC v20, nhắc lại
+
+> Đính chính: `model()` đã stable **trước v20**, KHÔNG phải mới/stable trong v20.
 
 ## Tổng quan
 
-Angular 20 chính thức đưa `model()` — Signal-based Two-way Binding API — từ **Developer Preview** sang **Stable**. `model()` cho phép tạo **two-way binding** inputs bằng signals, thay thế `@Input()` + `@Output()` cho các trường hợp cần sync data giữa parent và child.
+Angular 20 không đổi trạng thái `model()` — API này đã stable từ trước. `model()` cho phép tạo **two-way binding** inputs bằng signals, thay thế `@Input()` + `@Output()` cho các trường hợp cần sync data giữa parent và child.
 
 ## API mới
 

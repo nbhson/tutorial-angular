@@ -4,11 +4,21 @@
 
 ## Tổng quan
 
-Trước Angular 15, mỗi element chỉ có thể apply một directive. Directive Composition API cho phép compose nhiều directives trên cùng host element.
+Angular vốn đã cho phép nhiều directives trên 1 element (vd `<div *ngIf appHighlight>`).
+Cái mới của v15 là **composition qua `hostDirectives`**: component/directive có thể "mang theo"
+behavior của các `standalone` directives khác, kèm khả năng chọn lọc/rename `inputs`/`outputs`,
+compiler kiểm tra conflict. Không tạo DOM mới, khác với inheritance.
+
+> Điều kiện official: chỉ `standalone: true` directives mới dùng được trong `hostDirectives`.
+> Động lực official: top GitHub feature request, dùng nhiều cho CDK/Material reuse.
 
 ## Ví dụ 1: Basic Composition
 
 ```ts
+// Lưu ý: HasColor, CdkMenu phải là standalone: true mới dùng được trong hostDirectives
+@Directive({ selector: '[hasColor]', standalone: true })
+export class HasColor { }
+
 @Component({
   selector: 'mat-menu',
   hostDirectives: [HasColor, {
@@ -27,6 +37,9 @@ Component `MatMenu` kế thừa behavior từ:
 ## Ví dụ 2: Selective Inputs/Outputs
 
 ```ts
+@Directive({ selector: '[menuBehavior]', standalone: true })
+export class MenuBehavior { }
+
 @Component({
   selector: 'admin-menu',
   template: 'admin-menu.html',
@@ -47,6 +60,7 @@ export class AdminMenu { }
 ## Ví dụ 3: Rename Inputs/Outputs
 
 ```ts
+// MenuBehavior là standalone directive (xem Ví dụ 2)
 @Component({
   selector: 'admin-menu',
   template: 'admin-menu.html',
@@ -131,7 +145,7 @@ Composition (multiple directives):
 |---------|-------------------|----------------------|
 | Coupling | Tight | Loose |
 | Reuse | Single parent | Multiple sources |
-| Input conflict | Runtime error | Compiler resolves |
+| Input conflict | Cần rename/expose rõ, nếu không lỗi compile | Compiler báo lỗi nếu trùng mà không xử lý |
 | Flexibility | Limited | High |
 
 ## Best Practices

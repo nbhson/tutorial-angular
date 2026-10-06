@@ -2,7 +2,9 @@
 
 ## Mô tả
 
-`afterRenderEffect()` là lifecycle hook mới trong Angular 19 kết hợp giữa `afterRender()` và `effect()`. Nó chỉ chạy lại callback khi **các signal dependency thay đổi** SAU KHI component render xong — thay vì chạy mỗi lần render như `afterRender()`.
+`afterRenderEffect()` là lifecycle hook mới trong Angular 19 (experimental trong v19, **stable từ v20 / hiện tại đã stable**) kết hợp giữa `afterRender()` và `effect()`. Nó chỉ chạy lại callback khi **các signal dependency thay đổi** SAU KHI component render xong — thay vì chạy mỗi lần render như `afterRender()`.
+
+> Cả `afterRender()` và `afterRenderEffect()` đều nhận callback `(onCleanup) => void` — dùng `onCleanup(fn)` để đăng ký hàm dọn dẹp trước lần chạy kế tiếp. Điểm khác: `afterRender()` trả về `void`, còn `afterRenderEffect()` trả về **`AfterRenderRef`** có method `.destroy()` để hủy effect.
 
 ## Vấn đề giải quyết
 
@@ -23,13 +25,32 @@ afterRenderEffect(() => {
 ## Cú pháp
 
 ```ts
-afterRenderEffect(() => {
+import { afterRenderEffect, AfterRenderPhase } from '@angular/core';
+
+// Chạy ít nhất 1 lần sau lần render kế tiếp, sau đó chỉ chạy lại khi signal đổi
+const ref: AfterRenderRef = afterRenderEffect((onCleanup) => {
   // Đọc signal ở đây — Angular tự track dependency
   const value = this.someSignal();
   // Side effect sau render khi value thay đổi
   doSomething(value);
-});
+
+  onCleanup(() => cleanup(value));
+},
+// options mở rộng — chọn phase đọc/ghi DOM:
+{ injector, debugName, phase: 'mixedReadWrite' /* | 'earlyRead' | 'write' | 'read' */ });
+
+// Hủy khi không cần nữa
+ref.destroy();
 ```
+
+| Phase | Mô tả |
+|-------|-------|
+| `earlyRead` | Đọc DOM sớm, trước khi Angular ghi |
+| `write` | Ghi DOM (thay đổi layout) |
+| `mixedReadWrite` | Vừa đọc vừa ghi (mặc định) |
+| `read` | Chỉ đọc DOM sau khi ghi xong |
+
+> Chỉ chạy trên **browser** (không chạy trên server/SSR). Callback **luôn chạy ít nhất 1 lần** sau lần render kế tiếp, kể cả khi chưa có dependency nào — các lần sau mới gate theo signal change.
 
 ## Files trong project
 
@@ -102,7 +123,8 @@ Click "Update normal view":
 |---------|----------------|----------------------|
 | Khi chạy | Sau mỗi lần render | Sau render khi dependency thay đổi |
 | Track signals | ❌ Không | ✅ Có |
-| Return value | void | Có thể return effect cleanup |
+| Return value | `void` | `AfterRenderRef` (có `.destroy()` để hủy effect) |
+| Cleanup | `onCleanup(fn)` | `onCleanup(fn)` |
 | Use case | DOM operations cố định | Side effects phụ thuộc signal |
 | Performance | Chạy thừa nếu không thay đổi | Tối ưu — chỉ chạy khi cần |
 

@@ -2,7 +2,9 @@
 
 ## Tổng quan
 
-Trong Angular 18, `redirectTo` trong route configuration được mở rộng để **hỗ trợ function** thay vì chỉ nhận string cố định. Điều này cho phép redirect logic linh hoạt hơn dựa trên runtime conditions như query params, route params, hoặc inject services.
+Trong Angular 18, `redirectTo` trong route configuration được mở rộng để **hỗ trợ `RedirectFunction`** thay vì chỉ nhận string cố định. Điều này cho phép redirect logic linh hoạt hơn dựa trên runtime conditions như query params, route params, hoặc inject services.
+
+> Ghi chú về tên folder: `2_route-redirect-as-fucntion` đang typo `fucntion` (đúng là `function`). Giữ nguyên tên để tránh vỡ link/import, không rename trong tutorial này.
 
 Trước Angular 18, `redirectTo` chỉ chấp nhận một string:
 ```ts
@@ -19,6 +21,24 @@ Angular 18 cho phép sử dụng function:
   },
 }
 ```
+
+### Signature chính thức (`RedirectFunction`)
+
+```ts
+import type {ActivatedRouteSnapshot, UrlTree} from '@angular/router';
+
+type RedirectFunction = (
+  route: Pick<
+    ActivatedRouteSnapshot,
+    'routeConfig' | 'url' | 'params' | 'queryParams' | 'fragment' | 'data' | 'outlet' | 'title'
+  >,
+) => MaybeAsync<string | UrlTree>;
+```
+
+- Tham số chỉ có 8 fields trên — **không có `parent` / `root` / `route`**. Muốn dữ liệu từ route cha, hãy truyền qua `data` (inherit) hoặc đọc từ injected service, đừng destructure `({ queryParams, route })`.
+- Return là `MaybeAsync<string | UrlTree>` — string, `UrlTree` (tạo bằng `router.createUrlTree()` / `inject(Router)`), `Promise` hoặc `Observable` của chúng.
+- Function chạy trong injection context nên có thể gọi `inject(...)` trực tiếp.
+- Xem: https://angular.dev/api/router/RedirectFunction
 
 ## Cấu trúc files
 
@@ -88,9 +108,13 @@ export const routes: Routes = [
 ```
 
 **Giải thích:**
-- `redirectTo` nhận một function với parameter `{ queryParams }` (cũng hỗ trợ `params`, `fragment`, v.v.)
-- Function return một string là đường dẫn redirect đến
-- `inject(ErrorHandler)` — có thể inject any service trong redirect function
+- `redirectTo` nhận một `RedirectFunction` với param là `Pick<ActivatedRouteSnapshot, 'routeConfig' | 'url' | 'params' | 'queryParams' | 'fragment' | 'data' | 'outlet' | 'title'>` — ví dụ `({ queryParams, params, data, fragment })`
+- Function return `string | UrlTree | Promise<...> | Observable<...>`:
+  - string bắt đầu bằng `/` là **absolute redirect** (vd `/admin/dashboard`)
+  - string không có `/` là **relative redirect** so với route hiện tại (vd `product-detail` trong demo là relative với `/product`)
+  - muốn giữ queryParams/fragment hoặc redirect phức tạp, return `UrlTree` qua `inject(Router).createUrlTree([...])`
+- Route dùng `redirectTo` **không có `component`** và nên kèm `pathMatch: 'full'` khi `path` rỗng để tránh prefix-match lặp vô hạn
+- `inject(ErrorHandler)` — có thể inject any service trong redirect function vì chạy trong injection context
 - Nếu `queryParams['id']` tồn tại → redirect đến `product-detail`
 - Nếu không có `id` → log error và redirect đến `not-found`
 
@@ -196,22 +220,27 @@ export class NotFoundComponent implements OnInit { }
 ## Ví dụ khác — Redirect theo Roles
 
 ```ts
-{
-  path: 'dashboard',
-  redirectTo: ({ queryParams, route }) => {
-    const userService = inject(UserService);
-    const user = userService.currentUser();
+import {inject} from '@angular/core';
+import type {RedirectFunction} from '@angular/router';
 
-    if (user?.isAdmin) {
-      return '/admin/dashboard';
-    } else if (user?.isEditor) {
-      return '/editor/dashboard';
-    } else {
-      return '/unauthorized';
-    }
-  },
-},
+export const redirectByRole: RedirectFunction = () => {
+  const userService = inject(UserService);
+  const user = userService.currentUser();
+
+  if (user?.isAdmin) {
+    return '/admin/dashboard'; // absolute
+  } else if (user?.isEditor) {
+    return '/editor/dashboard'; // absolute
+  } else {
+    return '/unauthorized';
+  }
+};
+
+// dùng: { path: 'dashboard', redirectTo: redirectByRole, pathMatch: 'full' }
 ```
+
+> Sai thường gặp: `redirectTo: ({ queryParams, route }) => ...` — `route` không tồn tại trong `RedirectFunction`. Chỉ destructure 8 fields đã liệt kê ở trên.
+
 
 ## So sánh: String vs Function Redirect
 
@@ -228,7 +257,7 @@ export class NotFoundComponent implements OnInit { }
 1. **Dynamic routing** — Redirect logic dựa trên runtime conditions thay vì hard-coded
 2. **Service injection** — Có thể inject any service trong redirect function
 3. **Better UX** — Graceful error handling và conditional redirects
-4. **Cleaner code** — Loại bỏ conditional logic trong Guards,集中 vào redirect function
+4. **Cleaner code** — Loại bỏ conditional logic trong Guards, tập trung vào redirect function
 
 ## Yêu cầu
 
@@ -237,5 +266,6 @@ export class NotFoundComponent implements OnInit { }
 
 ## Tài liệu tham khảo
 
+- [RedirectFunction API](https://angular.dev/api/router/RedirectFunction)
 - [Angular Router Official Guide](https://angular.dev/guide/routing)
 - [Syncfusion - What's New in Angular 18](https://www.syncfusion.com/blogs/post/whats-new-in-angular-18)

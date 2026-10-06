@@ -1,10 +1,11 @@
-# 7. CSS Native Encapsulation (Angular 20)
+# 7. Encapsulation quanh v20 (đã hiệu chỉnh — mới là `IsolatedShadowDom` experimental)
 
-## Tổng quan
+> Đính chính toàn file: `ViewEncapsulation.None/Emulated/ShadowDom` có từ lâu.
+> `encapsulation: 'none'` KHÔNG phải native CSS mới.
+> Mới quanh v20 là **`IsolatedShadowDom` (experimental)** — Shadow DOM cô lập hơn
+> cho style isolation mà vẫn tương thích Angular (xem release notes v20).
 
-Angular 20 mở rộng `encapsulation` options — cho phép components dùng **native CSS** mà không cần Angular's ViewEncapsulation. `encapsulation: 'none'` giờ hoạt động tốt hơn với modern CSS features.
-
-## API mới
+## API đúng
 
 ```typescript
 import { Component, ViewEncapsulation } from '@angular/core';
@@ -13,18 +14,23 @@ import { Component, ViewEncapsulation } from '@angular/core';
   selector: 'app-widget',
   template: `<div class="widget">...</div>`,
   styles: [`.widget { color: red; }`],
-  encapsulation: ViewEncapsulation.None  // Native CSS
+  // Có từ lâu — không phải mới v20:
+  encapsulation: ViewEncapsulation.Emulated, // default
+  // encapsulation: ViewEncapsulation.None,  // global — có từ lâu
+  // encapsulation: ViewEncapsulation.ShadowDom, // có từ lâu
+  // Mới quanh v20 (experimental): IsolatedShadowDom
 })
 export class WidgetComponent {}
 ```
 
-**Encapsulation Options:**
+**Encapsulation — trạng thái đúng:**
 
-| Option | Mô tả |
+| Option | Trạng thái |
 |---|---|
-| `ViewEncapsulation.Emulated` | Default — scoped styles |
-| `ViewEncapsulation.None` | Global styles (native CSS) |
-| `ViewEncapsulation.ShadowDom` | Shadow DOM encapsulation |
+| `ViewEncapsulation.Emulated` | Default, có từ lâu |
+| `ViewEncapsulation.None` | Global styles, có từ lâu — KHÔNG phải mới v20 |
+| `ViewEncapsulation.ShadowDom` | Có từ lâu |
+| `IsolatedShadowDom` | Mới quanh v20, **experimental** |
 
 ## Tại sao cần feature này?
 

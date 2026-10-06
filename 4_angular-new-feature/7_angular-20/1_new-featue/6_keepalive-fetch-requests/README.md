@@ -1,28 +1,26 @@
-# 6. Keepalive cho Fetch Requests (Angular 20)
+# 6. Keepalive cho Fetch Requests (⚠️ INVENTED — `withKeepalive()` KHÔNG tồn tại)
 
-## Tổng quan
+> Đính chính toàn file: **KHÔNG có `withKeepalive()` provider trong Angular**.
+> `keepalive` là **flag native của Fetch API** truyền per-request (#60621):
+> `http.get(url, { keepalive: true })` (yêu cầu `withFetch()`).
+> Mọi ví dụ `provideHttpClient(withFetch(), withKeepalive())` trước đây là **invented**.
+> Nguồn: https://github.com/angular/angular/releases/tag/20.0.0 (#60621)
 
-Angular 20 giới thiệu **Keepalive cho Fetch Requests** — cho phép `fetch` requests tồn tại qua các navigation, thay vì bị cancel khi user navigate sang trang khác. Đây là feature thuộc `withFetch` API, giải quyết vấn đề "request cancellation" phổ biến trong SPA.
-
-## API mới
+## API đúng (per-request flag, không phải provider)
 
 ```typescript
-// Trong app.config.ts
+// app.config.ts — chỉ cần withFetch()
 export const appConfig: ApplicationConfig = {
-  providers: [
-    provideHttpClient(
-      withFetch(),
-      withKeepalive()  // ← API mới
-    )
-  ]
+  providers: [provideHttpClient(withFetch())]
 };
+
+// Per-request:
+this.http.get('/api/upload', { keepalive: true });
+this.http.post('/api/sync', body, { keepalive: true });
 ```
 
-**Thay đổi so với trước:**
-
-| Trước (Angular < 20) | Sau (Angular 20) |
-|---|---|
-| `withFetch()` — request bị cancel khi navigate | `withFetch()` + `withKeepalive()` — request tiếp tục |
+> Giới hạn native fetch `keepalive`: chỉ dùng cho request nhỏ (body ≤64KB theo spec),
+> phù hợp beacon/sync ngắn — KHÔNG dùng cho upload file lớn/report vài phút.
 
 ## Tại sao cần feature này?
 
@@ -35,26 +33,23 @@ Trước Angular 20, khi dùng `withFetch()`, các HTTP requests bị **cancel t
 | **Background sync** | Data sync bị interrupt khi navigate |
 | **Poor UX** | User thấy lỗi hoặc data không cập nhật |
 
-`withKeepalive()` giải quyết bằng cách giữ requests tồn tại qua navigation.
+`{ keepalive: true }` per-request (native fetch flag) giải quyết bằng cách giữ requests tồn tại qua navigation.
 
 ## Ví dụ thực tế
 
-### 1. Basic Setup (`app.config.ts`)
+### 1. Basic Setup (`app.config.ts`) — đúng
 
 ```typescript
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient, withFetch, withKeepalive } from '@angular/common/http';
+import { provideHttpClient, withFetch } from '@angular/common/http';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(
-      withFetch(),
-      withKeepalive()  // Giữ fetch requests qua navigation
-    )
+    provideHttpClient(withFetch()) // keepalive truyền per-request, không phải provider
   ]
 };
 ```
@@ -70,12 +65,18 @@ export class UploadService {
     const formData = new FormData();
     formData.append('file', file);
 
+    // ⚠️ Lưu ý spec: keepalive giới hạn ~64KB — upload lớn KHÔNG dùng keepalive.
+    // Ví dụ đúng cho beacon/sync nhỏ:
     return this.http.post<UploadResponse>('/api/upload', formData, {
       reportProgress: true,
       observe: 'events'
     });
-    // Request sẽ TIẾP TỤC ngay cả khi user navigate sang trang khác
-    // Thanks to withKeepalive()
+  }
+
+  // Ví dụ đúng với keepalive per-request (request nhỏ):
+  sendBeacon(data: unknown) {
+    return this.http.post('/api/beacon', data, { keepalive: true });
+    // Request TIẾP TỤC khi navigate (native fetch keepalive + withFetch)
   }
 }
 
@@ -115,9 +116,8 @@ export class SyncService {
   private http = inject(HttpClient);
 
   syncData(data: any[]): Observable<any> {
-    // Long-running sync request
-    return this.http.post('/api/sync', { data });
-    // Request tiếp tục chạy dù user navigate
+    // Sync nhỏ — giữ qua navigation nhờ keepalive per-request
+    return this.http.post('/api/sync', { data }, { keepalive: true });
   }
 }
 
@@ -151,11 +151,10 @@ export class ReportService {
   private http = inject(HttpClient);
 
   generateReport(params: ReportParams): Observable<Blob> {
-    // Report generation có thể mất vài phút
+    // ⚠️ Report lớn/chạy vài phút KHÔNG dùng keepalive (vượt giới hạn spec).
     return this.http.post('/api/reports/generate', params, {
       responseType: 'blob'
     });
-    // Request tiếp tục dù user navigate
   }
 }
 
@@ -185,7 +184,7 @@ export class ReportComponent {
 
 ## Flow chi tiết
 
-### Không có `withKeepalive()`
+### Không có `keepalive: true` per-request
 
 ```
 User click Upload
@@ -198,30 +197,21 @@ User click Navigate to /other-page
         │
         ▼
 ❌ Request bị CANCEL
-        │
-        ▼
-Upload thất bại
 ```
 
-### Với `withKeepalive()`
+### Với `keepalive: true` per-request (+ withFetch())
 
 ```
-User click Upload
+User click beacon/sync nhỏ
         │
         ▼
-POST /api/upload (fetch request)
+POST /api/beacon { keepalive: true }
         │
         ▼
 User click Navigate to /other-page
         │
         ▼
-✅ Request TIẾP TỤC
-        │
-        ▼
-Upload hoàn thành (ngầm)
-        │
-        ▼
-User thấy notification thành công
+✅ Request TIẾP TỤC (native fetch keepalive)
 ```
 
 ## So sánh trước và sau Angular 20
@@ -239,14 +229,15 @@ provideHttpClient(withFetch());
 ### Sau Angular 20
 
 ```typescript
-// withFetch() + withKeepalive() - request giữ nguyên
-provideHttpClient(withFetch(), withKeepalive());
+// withFetch() + keepalive per-request (đúng):
+provideHttpClient(withFetch());
+this.http.post(url, body, { keepalive: true });
 
-// User navigate → fetch request tiếp tục chạy
-// Không cần workaround phức tạp
+// ❌ INVENTED, không tồn tại:
+// provideHttpClient(withFetch(), withKeepalive());
 ```
 
-**Lợi ích:**
+**Lợi ích (khi dùng đúng flag per-request cho request nhỏ):**
 - ✅ Upload không bị cancel
 - ✅ Long-running requests giữ nguyên
 - ✅ Background sync hoạt động
@@ -295,8 +286,8 @@ processPayment(paymentData: PaymentData): Observable<PaymentResult> {
 
 ## Best practices
 
-1. **Dùng `withKeepalive()`** cho requests quan trọng (upload, payment, sync)
-2. **Không dùng** cho trivial requests (analytics, logging)
+1. **Dùng `{ keepalive: true }` per-request** cho beacon/sync nhỏ (≤64KB), không phải provider global
+2. **Không dùng** cho upload lớn / report phút-long (vượt giới hạn native keepalive)
 3. **Show notification** khi request hoàn thành (vì user có thể đang ở trang khác)
 4. **Implement error handling** vì user có thể không thấy error ngay
 5. **Monitor request status** bằng service hoặc state management
@@ -306,18 +297,18 @@ processPayment(paymentData: PaymentData): Observable<PaymentResult> {
 ### Phân biệt Observable Subscription và Fetch Request
 
 ```
-Component A subscribes → http.post('/api/upload', data)
-        │
-        │  withKeepalive() active
-        ▼
+Component A subscribes → http.post('/api/beacon', data, { keepalive: true })
+         │
+         │  keepalive per-request + withFetch()
+         ▼
 Component A navigate away
-        │
-        ├──→ [Observable Subscription] → CLEANED UP (ngOnDestroy / takeUntilDestroyed) ✅
-        │
-        └──→ [Fetch Request (HTTP)] → CONTINUES (thanks to keepalive) 🔄
+         │
+         ├──→ [Observable Subscription] → CLEANED UP (ngOnDestroy / takeUntilDestroyed) ✅
+         │
+         └──→ [Fetch Request (HTTP)] → CONTINUES (thanks to native keepalive flag) 🔄
 ```
 
-`withKeepalive()` **không giữ Observable subscription sống** — nó chỉ giữ cho **fetch request** không bị abort.
+`{ keepalive: true }` **không giữ Observable subscription sống** — nó chỉ giữ cho **fetch request** không bị abort.
 
 ### Chi tiết từng layer
 
@@ -425,7 +416,7 @@ export class OtherPageComponent {
 
 **Kết luận:**
 
-- `withKeepalive()` **không giữ Observable sống** — nó chỉ giữ **fetch request** chạy ngầm
+- `{ keepalive: true }` per-request (native fetch flag, không phải provider) **không giữ Observable sống** — nó chỉ giữ **fetch request** chạy ngầm
 - Observable subscription vẫn được cleanup bình thường qua `takeUntilDestroyed()`, `ngOnDestroy()`, hay `unsubscribe()`
 - Nếu cần nhận response sau khi navigate, phải dùng **root-level service** hoặc **state management** để cache kết quả
 

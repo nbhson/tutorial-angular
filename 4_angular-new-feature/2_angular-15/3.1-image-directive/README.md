@@ -38,51 +38,46 @@ provideImageLoader(customLoader)
 
 ## Responsive Images
 
+> Dùng `ngSrcset` + `sizes`, không viết `srcset` thủ công. Xem bài cơ bản `3-image-directive`.
+
 ```html
-<!-- srcset với sizes -->
 <img
   ngSrc="hero.jpg"
   width="1200"
   height="600"
   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-  srcset="
-    hero-400.jpg 400w,
-    hero-800.jpg 800w,
-    hero-1200.jpg 1200w
-  ">
+  ngSrcset="400w, 800w, 1200w">
 ```
 
-## Placeholder Blur
+## Fill mode + auto-srcset (mới đúng của v15) + SSR preload
 
-```html
-<!-- Blur placeholder while loading -->
-<img
-  ngSrc="hero.jpg"
-  width="800"
-  height="600"
-  placeholder
-  [placeholder]="blurHash">
-```
+- `fill` [experimental trong v15]: `<img ngSrc="hero.jpg" fill priority>`
+- Auto-`srcset` từ loader khi có `sizes`
+- `priority` + SSR tự sinh `<link rel="preload">` trong `<head>` (không cần config loader options)
+
+> `placeholder` (blur) KHÔNG phải v15 – có từ v17+ (PR #53783). Đừng dùng `[placeholder]="blurHash"` trong project v15.
+> Muốn tìm hiểu placeholder, xem docs bản mới: https://angular.dev/guide/image-optimization
 
 ## Preload Configuration
 
 ```ts
-// Preload above-the-fold images
+// Preload cho priority images là tự động khi SSR, không có options
+// preloadHintTags/imageLinkTags trong provideImgixLoader là KHÔNG tồn tại – đã xóa ví dụ sai.
 import { provideImgixLoader } from '@angular/common';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideImgixLoader('https://my-site.imgix.net', {
-      preloadHintTags: true,
-      imageLinkTags: true
-    })
+    provideImgixLoader('https://my-site.imgix.net')
   ]
 });
 ```
 
 ## Performance Metrics
 
-| Metric | Traditional | NgOptimizedImage |
+> Official chỉ công bố 1 con số: Land's End cải thiện 75% LCP (lab). Bảng dưới là minh họa local, không phải benchmark official.
+> Nguồn: https://blog.angular.dev/angular-v15-is-now-available-df7be7f2f4c8
+
+| Metric | Traditional (minh họa) | NgOptimizedImage (minh họa) |
 |--------|-------------|-----------------|
 | First Contentful Paint | 3.2s | 1.8s |
 | Largest Contentful Paint | 4.1s | 2.4s |

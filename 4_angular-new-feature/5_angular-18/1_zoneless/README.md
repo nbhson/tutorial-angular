@@ -236,7 +236,7 @@ export class HttpRequestComponent implements OnChanges {
 
 ### `src/app/services/todo.service.ts` — Todo Service
 
-Service返還 mock data với delay 1.5s, mô phỏng HTTP request.
+Service trả về mock data với delay 1.5s, mô phỏng HTTP request.
 
 ```ts
 @Injectable({ providedIn: 'root' })
@@ -321,9 +321,11 @@ export class SignalDemoComponent {
 ng new my-app --experimental-zoneless
 ```
 
-## Coalescing trong Angular 18
+> Flag `--experimental-zoneless` đúng cho **v18**. Từ **v20.2** `provideZonelessChangeDetection()` thành stable (thay `provideExperimentalZonelessChangeDetection`), và từ **v21** zoneless là default cho new apps.
 
-Bắt đầu từ Angular 18, zone event coalescing được bật **theo mặc định** cho ứng dụng mới:
+## ChangeDetectionScheduler + Coalescing trong Angular 18
+
+Bắt đầu từ Angular 18, Angular dùng **ChangeDetectionScheduler mới** chung cho cả zone.js và zoneless apps (thay cho cụm từ cũ "Merged event coalescing"). Event coalescing được bật **theo mặc định** cho ứng dụng mới kể cả khi vẫn dùng ZoneJS:
 
 ```ts
 bootstrapApplication(App, {
@@ -333,7 +335,21 @@ bootstrapApplication(App, {
 });
 ```
 
-Coalescing gộp nhiều change detection cycles thành một, giảm不必要的 rendering.
+Coalescing gộp nhiều change detection cycles thành một, giảm rendering không cần thiết.
+
+### Khi nào zoneless app chạy change detection?
+
+Angular chỉ schedule change detection khi có một trong các triggers:
+
+1. `markForCheck()` / `detectChanges()` thủ công (`ChangeDetectorRef`)
+2. `setInput()` trên component
+3. Signal update (signal thay đổi giá trị)
+4. Bound event listeners trong template (`(click)`, `(input)`...)
+5. Attach dirty view (dynamic component attach)
+6. Remove view (view bị destroy)
+7. Render hook (ví dụ `afterRender` / `afterNextRender` callbacks)
+
+> `setInterval`, `setTimeout`, Promise, HTTP callbacks **không** tự trigger — phải gọi `markForCheck()`/`detectChanges()` thủ công hoặc dùng Signals/`async` pipe.
 
 ## So sánh: Zone.js vs Zoneless
 
@@ -370,11 +386,14 @@ Coalescing gộp nhiều change detection cycles thành một, giảm不必要�
 ### Khi dùng Zoneless (mới)
 
 - Không còn Zone.js → Angular **không tự động** chạy change detection nữa
-- Angular chỉ chạy change detection khi:
-  1. **Signal** thay đổi giá trị
-  2. Gọi `ChangeDetectorRef.markForCheck()` / `detectChanges()`
-  3. Event handler trong template (click, input...)
-  4. `async` pipe subscribed observable emit
+- Angular chỉ schedule change detection khi:
+  1. Gọi `ChangeDetectorRef.markForCheck()` / `detectChanges()`
+  2. `setInput()` trên component
+  3. **Signal** thay đổi giá trị
+  4. Bound event listeners trong template (click, input...)
+  5. Attach dirty view (dynamic component)
+  6. Remove view (view bị destroy)
+  7. Render hook (`afterRender` / `afterNextRender`)
 
 ### So sánh nhu cầu OnPush
 

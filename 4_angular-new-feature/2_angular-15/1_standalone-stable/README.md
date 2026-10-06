@@ -14,6 +14,9 @@ import { AppComponent } from './app/app.component';
 import { appRoutes } from './app/app.routes';
 
 // Không cần NgModule
+// Lưu ý v15: provideHttpClient() gốc chỉ có withInterceptorsFromDi()/withLegacyInterceptors,
+// withInterceptors(fn[]) hoàn thiện từ 15.1+. withFetch()/withXhr() KHÔNG có trong v15
+// (fetch thành default từ ~v18). Đừng copy withFetch() vào project v15 thật.
 bootstrapApplication(AppComponent, {
   providers: [
     provideRouter(appRoutes),
@@ -55,6 +58,9 @@ bootstrapApplication(AppComponent, {
 ```
 
 ## Router Configuration
+
+> `title` trong route là feature mới của v15 (trước phải tự viết `TitleStrategy`).
+> Router v15 còn tự unwrap `default export` khi lazy-load: `.then(m => m.default ?? m.X)`.
 
 ```ts
 // Routes với title, guard, và lazy loading
@@ -105,17 +111,24 @@ const routes: Routes = [
 
 ## Integration với HttpClient
 
+> `provideHttpClient()` là API mới của v15 (thay `HttpClientModule`), tree-shakable.
+> Test dùng `provideHttpClientTesting()` + `provideLocationMocks()`.
+
 ```ts
-// provideHttpClient tree-shakable
+// provideHttpClient tree-shakable (v15: chưa có withFetch/withXhr)
 bootstrapApplication(AppComponent, {
   providers: [
     provideRouter(routes),
     provideHttpClient(
-      withInterceptors([loggingInterceptor]),
-      withFetch()  // Sử dụng Fetch API
+      withInterceptors([loggingInterceptor])
+      // withFetch() // ❌ KHÔNG có trong v15.0-15.2, đừng dùng
     )
   ]
 });
+
+// Standalone directive/pipe: standalone: true, dùng trực tiếp trong imports: [...]
+// CLI: ng g component --standalone
+// Test: providers: [provideHttpClientTesting()]
 ```
 
 ## Flow Diagram

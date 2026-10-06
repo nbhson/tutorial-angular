@@ -6,10 +6,10 @@ Signal Forms phát hành dạng experimental ở Angular 21 và trở thành **s
 ## Tính năng chính
 
 - **API stable**: Không còn cảnh báo experimental
-- **Lỗi validation có kiểu**: Các lỗi có sẵn được định kiểu đúng để hỗ trợ autocomplete
-- **Validator mới**: Validator `date` và `limit` giờ là public
+- **Lỗi validation có kiểu**: `FieldState.getError()` được định kiểu đúng để hỗ trợ autocomplete
+- **Validator mới (single-source: angular.love)**: Validator `date` và `limit` giờ là public
 - **Hiệu năng**: `FormField.parseErrors` không còn tính toán lại vô lý
-- **Model dạng plain-object**: Hỗ trợ rõ ràng hơn cho custom controls
+- **Model dạng plain-object (single-source: angular.love)**: Hỗ trợ rõ ràng hơn cho custom controls
 
 ## Ví dụ Code
 
@@ -65,7 +65,7 @@ export class LoginComponent {
   selector: 'app-register',
   imports: [FormField],
   template: `
-    <form [formGroup]="registerForm">
+    <form (submit)="onRegister($event)">
       <input [formField]="registerForm.firstName" placeholder="Tên" />
       <input [formField]="registerForm.lastName" placeholder="Họ" />
       <input [formField]="registerForm.email" placeholder="Email" />
@@ -87,8 +87,17 @@ export class RegisterComponent {
     required(f.email, { message: 'Email là bắt buộc' });
     email(f.email, { message: 'Email không hợp lệ' });
   });
+
+  onRegister(event: Event) {
+    event.preventDefault();
+    if (this.registerForm().valid()) {
+      console.log(this.model());
+    }
+  }
 }
 ```
+
+> ⚠️ Đính chính: Signal Forms **không dùng `[formGroup]`** (đó là Reactive Forms cũ). Binding đúng là `[formField]` cho từng field (`[field]` là tên ở bản experimental v21, v22 dùng `[formField]`).
 
 ### Custom Validators
 
@@ -114,11 +123,11 @@ const userForm = form(
 
 | Tính năng | Mô tả |
 |---------|-------------|
-| **Validator date/limit public** | Giờ thuộc hợp đồng (contract) stable |
-| **getError có kiểu** | Autocomplete thật thay vì `any` |
-| **Hướng dẫn field metadata** | Ghi lại các pattern trước đây không chính thức |
-| **Hiệu năng** | Giảm các lần tính toán lại không cần thiết |
-| **Model dạng plain-object** | Hỗ trợ custom control tốt hơn |
+| **Validator date/limit public (single-source)** | Giờ thuộc hợp đồng (contract) stable — chỉ thấy trong bài angular.love, changelog chính thức chỉ ghi "graduate signal forms APIs to public API" |
+| **getError có kiểu** | Autocomplete thật thay vì `any` — khớp changelog `add FieldState.getError()` |
+| **Hướng dẫn field metadata (single-source)** | Ghi lại các pattern trước đây không chính thức |
+| **Hiệu năng** | Giảm các lần tính toán lại không cần thiết — khớp changelog `avoid spurious recomputation in FormField.parseErrors`, `avoid redundant invalidations in parser errors signal` |
+| **Model dạng plain-object (single-source)** | Hỗ trợ custom control tốt hơn |
 
 ## Migration từ v21
 

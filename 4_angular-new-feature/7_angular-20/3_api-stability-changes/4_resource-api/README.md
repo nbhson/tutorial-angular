@@ -1,10 +1,10 @@
-# 4. Resource API (Angular 20)
+# 4. Resource API (`resource()` — EXPERIMENTAL trong v20, stable v22)
 
-## Tổng quan
+> Đính chính: `resource()` trong v20 vẫn là **experimental** (stable từ v22).
+> Signature đúng dùng **`params` + `loader`**, không phải `request`/`query`.
+> Xem https://angular.dev/api/core/resource.
 
-Angular 20 giới thiệu `resource()` — API mới để load **async data** (API calls, DB queries) một cách **signal-based**. `resource()` tự quản lý loading state, error state, và cache, thay thế patterns phức tạp trước đây.
-
-## API mới
+## API đúng (v20 experimental)
 
 ```typescript
 import { resource, signal } from '@angular/core';
@@ -12,9 +12,9 @@ import { resource, signal } from '@angular/core';
 const userId = signal(1);
 
 const userProfile = resource({
-  request: userId,
-  loader: async ({ request: userId }) => {
-    const response = await fetch(`/api/users/${userId}`);
+  params: () => ({ userId: userId() }), // ← đúng: params là reactive function
+  loader: async ({ params }) => {
+    const response = await fetch(`/api/users/${params.userId}`);
     return response.json();
   }
 });
@@ -27,7 +27,7 @@ const userProfile = resource({
 | Manual loading/error state | Auto `isLoading()`, `error()` |
 | Complex RxJS pipe | Simple async loader |
 | No built-in cache | Automatic cache |
-| Manual re-fetch | Auto re-fetch khi `request` thay đổi |
+| Manual re-fetch | Auto re-fetch khi `params` thay đổi |
 
 ## Ví dụ thực tế
 
@@ -51,9 +51,9 @@ export class UserProfileComponent {
   userId = signal(1);
 
   profile = resource({
-    request: this.userId,
-    loader: async ({ request: id }) => {
-      const res = await fetch(`/api/users/${id}`);
+    params: () => ({ id: this.userId() }),
+    loader: async ({ params }) => {
+      const res = await fetch(`/api/users/${params.id}`);
       return res.json();
     }
   });
@@ -80,10 +80,10 @@ export class SearchComponent {
   query = signal('');
 
   results = resource({
-    request: this.query,
-    loader: async ({ request: q }) => {
-      if (!q) return [];
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    params: () => ({ q: this.query() }),
+    loader: async ({ params }) => {
+      if (!params.q) return [];
+      const res = await fetch(`/api/search?q=${encodeURIComponent(params.q)}`);
       return res.json();
     }
   });
@@ -98,9 +98,9 @@ export class SearchComponent {
 
 ```typescript
 const items = resource({
-  request: this.category,
-  loader: async ({ request: cat }) => {
-    const res = await fetch(`/api/items?category=${cat}`);
+  params: () => ({ cat: this.category() }),
+  loader: async ({ params }) => {
+    const res = await fetch(`/api/items?category=${params.cat}`);
     return res.json();
   },
   defaultValue: []  // Giá trị mặc định trước khi load xong
@@ -111,7 +111,7 @@ const items = resource({
 
 1. **Dùng `resource()`** thay vì manual fetch + state
 2. **Set `defaultValue`** để tránh undefined errors
-3. **Cache data** qua `request` signal thay đổi
+3. **Cache data** qua `params` signal thay đổi
 4. **Handle errors** với `profile.error()`
 5. **Combine** với `computed()` cho derived data
 

@@ -1,8 +1,13 @@
-# 1. `@let` — Local Variables in Templates (Angular 20)
+# 1. `@let` — Local Variables in Templates (ra mắt v18.1, KHÔNG phải v20)
+
+> Đính chính: `@let` ra mắt **v18.1**, KHÔNG phải v20. File này giữ lại để dùng đúng,
+> không liệt kê như "mới v20".
+> Nguồn: https://blog.angular.dev/announcing-angular-v20-b5c9c06cf301,
+> https://github.com/angular/angular/releases/tag/20.0.0
 
 ## Tổng quan
 
-Angular 20 giới thiệu `@let` — cho phép khai báo **biến cục bộ ngay trong template** mà **không cần thêm logic vào Component class**. Đây là một phần của initiative "New Features in Templates" nhằm mang更多 power vào template layer.
+`@let` cho phép khai báo **biến cục bộ ngay trong template** mà **không cần thêm logic vào Component class**.
 
 ## API mới
 
@@ -100,9 +105,9 @@ Dealt 10 points of physical damage.
 
 Đây là pattern phổ biến khi xử lý **union types** hoặc **optional properties** trong template.
 
-## So sánh trước và sau Angular 20
+## So sánh trước và sau v18.1
 
-### Trước Angular 20
+### Trước v18.1
 
 ```typescript
 // Component class - phải thêm logic
@@ -136,7 +141,7 @@ export class App {
 }
 ```
 
-### Sau Angular 20 (với `@let`)
+### Sau v18.1 (với `@let`)
 
 ```typescript
 // Component class - giữ nguyên, gọn gàng

@@ -22,34 +22,39 @@ effect(
 ```
 
 ```ts
-// ✅ Angular 19 — ghi signal được phép mặc định
+// ✅ Angular 19 — flag bị XÓA hẳn, effect chỉ còn (fn, options)
+// options còn lại: injector, manualCleanup, debugName... — KHÔNG còn allowSignalWrites
 effect(() => {
   console.log(this.users());
   this.otherSignal.set('updated'); // Hoạt động bình thường!
 });
 ```
 
+> Đính chính: nói "mặc định `true`" là SAI — v19 **xóa** option `allowSignalWrites` khỏi signature `effect(fn, options)`. Truyền `{ allowSignalWrites: true }` sẽ báo lỗi type/compile.
+
 ### 2. Thay đổi thời gian thực thi
 
 ```
 Trước Angular 19:                    Angular 19:
-┌─────────────────────┐             ┌─────────────────────┐
-│ Change Detection     │             │ Change Detection     │
-│       ↓              │             │       ↓              │
-│ Microtask Queue      │             │ Effect executes      │
-│       ↓              │             │ (cùng cycle)        │
-│ Effect executes      │             └─────────────────────┘
-│ (có thể quá sớm /   │
-│  quá muộn)           │
-└─────────────────────┘
+┌─────────────────────┐             ┌─────────────────────────────────┐
+│ Change Detection     │             │ Component effects: chạy ĐỒNG BỘ │
+│       ↓              │             │ trong change detection cycle    │
+│ Microtask Queue      │             │ (cùng cycle, DOM đã update)     │
+│       ↓              │             ├─────────────────────────────────┤
+│ Effect executes      │             │ Root effects (tạo ngoài CD,     │
+│ (có thể quá sớm /   │             │ vd. ở root injector): vẫn chạy  │
+│  quá muộn)           │             │ qua microtask như cũ            │
+└─────────────────────┘             └─────────────────────────────────┘
 ```
+
+> Phân biệt: **component effects** (tạo trong component/directive context) → chạy trong CD cycle; **root effects** (tạo ở application root, ngoài CD) → vẫn schedule qua microtask.
 
 ## Files trong project
 
 ### `src/app/app.component.ts` — Component minh họa
 
 ```ts
-import { Component } from '@angular/core';
+import { Component, effect, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
@@ -59,10 +64,37 @@ import { RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
   title = '3_update-effect';
+  query = signal('');
+  results = signal<string[]>([]);
+
+  constructor() {
+    // Demo thật: ghi signal trong effect — v19 không cần allowSignalWrites
+    effect(() => {
+      const q = this.query().trim().toLowerCase();
+      // ✅ Ghi signal khác trong effect — hợp lệ từ v19
+      this.results.set(
+        ['apple', 'banana', 'orange'].filter((f) => f.includes(q))
+      );
+    });
+  }
+
+  onInput(value: string): void {
+    this.query.set(value);
+  }
 }
 ```
 
-> Project này minh họa khái niệm hơn là demo phức tạp — xem code example bên dưới để hiểu rõ hơn.
+### `src/app/app.component.html` — Template minh họa
+
+```html
+<input #q type="text" placeholder="Filter fruits" (input)="onInput(q.value)" />
+<p>Query: {{ query() }}</p>
+<ul>
+  @for (r of results(); track r) {
+    <li>{{ r }}</li>
+  }
+</ul>
+```
 
 ## Code Examples
 
@@ -116,14 +148,15 @@ export class TimingComponent {
 
 | Feature | Trước Angular 19 | Angular 19 |
 |---------|------------------|------------|
-| `allowSignalWrites` | Bắt buộc bật thủ công | Mặc định `true` |
-| Timing | Microtask | Change Detection cycle |
-| predictability | Có thể chạy sai lúc | Đồng bộ với component tree |
+| `allowSignalWrites` | Phải bật thủ công `{ allowSignalWrites: true }` | **Bị xóa** khỏi signature `effect(fn, options)` — ghi signal luôn được phép |
+| Timing (component effects) | Microtask | Change Detection cycle |
+| Timing (root effects) | Microtask | Vẫn microtask (ngoài CD context) |
+| predictability | Có thể chạy sai lúc | Đồng bộ với component tree (component effects) |
 | Khuyến nghị | Tránh ghi signal trong effect | An toàn để ghi signal |
 
 ## Lưu ý quan trọng
 
-⚠️ `effect()` vẫn đang ở giai đoạn **Developer Preview** trong Angular 19. Tuy nhiên, những cập nhật này là bước tiến quan trọng hướng tới stable API.
+⚠️ `effect()` vẫn đang ở giai đoạn **Developer Preview** trong Angular 19, trở thành **stable từ v20**. Tuy nhiên, những cập nhật này là bước tiến quan trọng hướng tới stable API.
 
 ## Reference
 

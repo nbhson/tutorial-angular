@@ -120,13 +120,20 @@ Signals State Management:
 
 ## So sánh với RxJS Store
 
-| Feature | Signals | RxJS Store (NgRx) |
+| Tiêu chí | Signals | RxJS Store (NgRx) |
 |---------|---------|-------------------|
-| Boilerplate | Ít | Nhiều (Actions, Reducers) |
+| Boilerplate | Ít (signal + computed + service) | Nhiều (Actions, Reducers, Selectors, Effects) |
 | Learning curve | Thấp | Cao |
-| DevTools | Chưa có | ✅ Redux DevTools |
-| Middleware | Chưa có | ✅ Effects |
-| Perfect for | Simple-Medium apps | Complex apps |
+| DevTools / time-travel debugging | Hạn chế ở v16 (ecosystem DevTools chưa tương đương Redux DevTools) | Mạnh (Redux DevTools, time-travel) |
+| Xử lý async / side-effect phức tạp | Thủ công (kết hợp `effect` + RxJS, xem `rxjs-interop`) | Mạnh (Effects/middleware chuyên dụng) |
+| Phù hợp | Simple–Medium apps, UI state cục bộ | Complex apps, nhiều event stream/async đan xen |
+
+> Đây là trade-off, không phải phán đoán "hơn/thua" tuyệt đối: nếu cần DevTools time-travel, middleware xử lý async phức tạp hoặc event sourcing thì NgRx/RxJS vẫn phù hợp hơn; nếu chỉ cần UI state đơn giản thì Signals gọn hơn nhiều.
+
+Nguồn official:
+- https://angular.dev/guide/signals
+- https://angular.dev/guide/rxjs-interop
+- https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d
 
 ## Best Practices
 
@@ -134,6 +141,31 @@ Signals State Management:
 2. **Computed cho derived state** – Không store redundant data
 3. **Service pattern** – Centralized state management
 4. **Immutable updates** – Luôn dùng update/set, không mutate
+
+## Lưu ý về equality với object state
+
+Signal mặc định so sánh bằng `===` (`defaultEquals`). Với object/array, mỗi lần `set`/`update` tạo reference mới (dù data giống nhau) đều bị coi là thay đổi → `computed`/`effect`/template phụ thuộc chạy lại. Cách xử lý:
+
+```ts
+// Dùng update + spread để tạo object mới (immutable) khi data thật sự đổi
+this.todosSignal.update(todos => todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+
+// Nếu cần tránh re-compute khi data giống nhau, truyền custom `equal`
+state = signal({ id: 1, title: 'Angular' }, {
+  equal: (a, b) => a.id === b.id && a.title === b.title,
+});
+```
+
+## Khi nào không nên dùng signals thay RxJS
+
+- Luồng async phức tạp, event stream đan xen (debounce, switchMap, retry, cancellation...): RxJS/NgRx phù hợp hơn.
+- Cần time-travel debugging, middleware/Effects tập trung, DevTools mạnh.
+- Interop: dùng `toSignal()` / `toObservable()` / `takeUntilDestroyed()` trong `@angular/core/rxjs-interop` (developer preview ở v16) để kết hợp Observable ↔ Signal thay vì thay thế hoàn toàn.
+
+Nguồn official:
+- https://angular.dev/guide/signals
+- https://angular.dev/guide/rxjs-interop
+- https://blog.angular.dev/angular-v16-is-here-4d7a28ec680d
 
 ---
 

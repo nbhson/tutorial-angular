@@ -2,7 +2,9 @@
 
 ## Tổng quan
 
-Hydration là cơ chế cho phép Angular tái sử dụng DOM đã render trên server (Server-Side Rendering) thay vì render lại từ đầu trên client. Angular 17 cải thiện hydration với incremental approach, giúp cải thiện hiệu suất SSR đáng kể.
+> Note: folder `1_hyration` thiếu chữ `d` (đúng là `hydration`) — giữ nguyên tên để tránh break link.
+
+Hydration là cơ chế cho phép Angular tái sử dụng DOM đã render trên server (Server-Side Rendering) thay vì render lại từ đầu trên client. Angular 17 đưa full non-destructive hydration lên stable, giúp cải thiện LCP khoảng 40-50% và hiệu suất SSR đáng kể.
 
 Khi không có hydration, Angular sẽ xóa toàn bộ DOM đã render trên server và render lại từ đầu trên client — gây ra `flickering` và lãng phí tài nguyên. Hydration giúp Angular "gắn lại" (reattach) event listeners và trạng thái vào DOM đã có sẵn.
 
@@ -28,26 +30,28 @@ Khi không có hydration, Angular sẽ xóa toàn bộ DOM đã render trên ser
 
 ### `src/app/app.config.ts` — Client Configuration
 
-Đây là file cấu hình quan trọng nhất cho hydration trên client-side. Provider `provideClientHydration` kích hoạt cơ chế hydration, và `withEventReplay()` đảm bảo các event interactions xảy ra trước khi hydration hoàn thành sẽ được replay.
+Đây là file cấu hình quan trọng nhất cho hydration trên client-side. Trong v17 chỉ dùng `provideClientHydration()` thuần.
+
+> Note version: `withEventReplay()` là v18+, incremental hydration là v19 developer preview — không dùng trong ví dụ v17.
 
 ```ts
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
-import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+import { provideClientHydration } from '@angular/platform-browser';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideClientHydration(withEventReplay()) // Kích hoạt hydration với event replay
+    provideClientHydration() // Kích hoạt hydration (v17: chưa có withEventReplay)
   ]
 };
 ```
 
 **Giải thích:**
 - `provideClientHydration()` — kích hoạt hydration cho Angular app
-- `withEventReplay()` — đảm bảo các user interactions (click, input...) xảy ra trong quá trình hydration được replay sau khi hydration hoàn thành, tránh mất event
+- Constraints: block nào không hydrate được thì thêm `ngSkipHydration`; dùng transfer cache (`withHttpTransferCacheOptions`) để tránh refetch sau hydrate
 
 ### `src/app/app.config.server.ts` — Server Configuration
 
@@ -115,8 +119,8 @@ export class AppComponent {
 
 1. **Giảm Time to Interactive (TTI)** — Không cần render lại toàn bộ DOM trên client
 2. **Giữ nguyên event listeners** — Các event listeners từ server-rendered content được giữ nguyên
-3. **Tránh flickering** — Không có hiện tượng nhấp nháy khi client接管
-4. **Event Replay** — User interactions xảy ra trong quá trình hydration được replay
+3. **Tránh flickering** — Không có hiện tượng nhấp nháy khi client tiếp quản DOM
+4. **Non-destructive** — Tái sử dụng DOM server thay vì xóa và render lại
 
 ## Cách sử dụng
 
@@ -139,5 +143,6 @@ ng build
 ## Tài liệu tham khảo
 
 - [Angular Hydration Guide](https://angular.dev/guide/hydration)
+- [Incremental Hydration Guide (v19+ preview)](https://angular.dev/guide/incremental-hydration)
 - [ProvideClientHydration API](https://angular.dev/api/platform-browser/provideClientHydration)
-- [withEventReplay API](https://angular.dev/api/platform-browser/withEventReplay)
+- [withEventReplay API (v18+)](https://angular.dev/api/platform-browser/withEventReplay)

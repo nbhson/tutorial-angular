@@ -39,12 +39,12 @@ export const appConfig: ApplicationConfig = {
 
 ### queryParamsHandling: 'preserve'
 
-Giữ nguyên TOÀN BỘ query parameters hiện tại, không thêm/xóa/sửa.
+Giữ nguyên TOÀN BỘ query parameters hiện tại và **bỏ qua `queryParams` mới** truyền vào navigation (params mới bị ignore).
 
 ```
 URL hiện tại:  /products?page=1&sort=asc
-Navigate đến:  /details (preserve)
-Kết quả URL:   /details?page=1&sort=asc  ✅ giữ nguyên
+Navigate đến:  /details (preserve + queryParams: { page: 2 })
+Kết quả URL:   /details?page=1&sort=asc  ✅ giữ nguyên, page=2 mới bị bỏ qua
 ```
 
 ### queryParamsHandling: 'merge'
@@ -73,19 +73,22 @@ Kết quả URL:   /details?page=2  ❌ sort bị mất!
 
 ```ts
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withRouterConfig } from '@angular/router';
 
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes)
+    provideRouter(
+      routes,
+      withRouterConfig({
+        defaultQueryParamsHandling: 'preserve'
+      })
+    )
   ]
 };
 ```
-
-> Demo này minh họa concept — trong thực tế bạn sẽ thêm `withRouterConfig({ defaultQueryParamsHandling: 'preserve' })` vào providers.
 
 ## So sánh chi tiết
 
@@ -121,7 +124,7 @@ this.router.navigate(['/products'], {
 
 ### Default config — Most common pattern
 ```ts
-//大多数情况下 dùng preserve để giữ nguyên context
+// Trong đa số trường hợp dùng preserve để giữ nguyên context
 provideRouter(routes, withRouterConfig({
   defaultQueryParamsHandling: 'preserve'
 }))

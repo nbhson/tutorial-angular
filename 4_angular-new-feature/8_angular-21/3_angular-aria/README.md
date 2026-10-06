@@ -14,13 +14,14 @@ Accessbility không còn là optional — đặc biệt nếu ứng dụng của
 npm install @angular/aria
 ```
 
-## Ví dụ sử dụng
+## Ví dụ sử dụng (pseudocode minh họa — API đang developer preview, có thể đổi)
 
-### Sử dụng trong Component
+> ⚠️ Đoạn code dưới là **pseudocode minh họa ý tưởng**, không phải API final copy-paste chạy được. Tên import như `AriaButton` có thể khác khi stable — theo dõi [Angular 21 Announcement](https://blog.angular.dev/announcing-angular-v21-57946c34f14b).
 
 ```typescript
+// PSEUDOCODE — minh họa ý tưởng, chưa phải API stable
 import { Component } from '@angular/core';
-import { AriaButton } from '@angular/aria';
+// import { AriaButton } from '@angular/aria'; // tên package/API có thể đổi
 
 @Component({
   selector: 'app-demo',

@@ -105,3 +105,4 @@ export class ButtonComponent {
 
 - [Angular 21 Announcement — blog.angular.dev](https://blog.angular.dev/announcing-angular-v21-57946c34f14b)
 - [Angular Class Binding](https://angular.dev/guide/templates/class-binding)
+- [ngclass-to-class migration — angular.dev](https://angular.dev/reference/migrations/ngclass-to-class)

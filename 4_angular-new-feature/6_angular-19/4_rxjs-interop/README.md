@@ -108,10 +108,43 @@ Custom equality function
 - **Array signals** từ Observable (so sánh shallow)
 - **Large objects** chỉ few fields thay đổi
 - **Immutable data** patterns (Redux/NgRx stores)
-- **Performance optimization** — giảm不必要的 renders
+- **Performance optimization** — giảm renders không cần thiết
+
+## API liên quan hay bị thiếu: `outputToObservable()` + `rxResource()`
+
+```ts
+import { outputToObservable } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
+
+// 1. outputToObservable() — NEW v19: biến component `output()` thành Observable
+export class ChildComponent {
+  userSelected = output<string>();
+}
+export class ParentComponent {
+  @ViewChild(ChildComponent) child!: ChildComponent;
+  ngAfterViewInit() {
+    outputToObservable(this.child.userSelected).subscribe((id) =>
+      console.log('selected', id)
+    );
+  }
+}
+
+// 2. rxResource() — NEW v19 (experimental): resource chuyên cho Observable/stream
+// thay vì loader Promise như resource()
+users = rxResource({
+  request: () => this.userId(),   // v19 key `request` (v20 rename `params`)
+  loader: ({ request }) => this.http.get<User>(`/api/users/${request}`),
+});
+const list = this.users.value;       // Signal<User | undefined>
+const loading = this.users.isLoading;
+```
+
+> `rxResource()` là cầu nối giữa `resource()` (Promise loader) và `httpResource()` (HttpClient chuyên dụng, hoàn thiện ở v20). Nếu demo chỉ nhắc `toSignal.equal` sẽ thiếu 2 API quan trọng của v19.
 
 ## Reference
 
 - [Angular RxJS Interop Docs](https://angular.dev/guide/signals/rxjs-interop)
 - [toSignal API](https://angular.dev/api/core/rxjs-interop/toSignal)
+- [outputToObservable API](https://angular.dev/api/core/rxjs-interop/outputToObservable)
+- [rxResource API](https://angular.dev/api/core/rxjs-interop/rxResource)
 - [Angular 19 Release Notes](https://blog.angular.dev/meet-angular-v19-7b29dfd05b84)

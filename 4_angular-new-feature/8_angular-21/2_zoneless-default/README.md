@@ -17,7 +17,7 @@ Zoneless là cơ chế change detection **không sử dụng Zone.js**. Thay và
 
 ## Tại sao cần zoneless mặc định?
 
-1. **Performance**: Không cần Zone.js意味着 bundle nhỏ hơn và change detection nhanh hơn
+1. **Performance**: Không cần Zone.js nên bundle nhỏ hơn và change detection nhanh hơn
 2. **Signals-first**: Align với hướng phát triển của Angular — Signals là core primitive
 3. **Predictability**: Developer chủ động control khi nào UI update, ít surprise hơn
 
@@ -33,36 +33,43 @@ ng new my-app
 ### Migrate Project Hiện Có
 
 ```bash
-# Chạy schematic để migrate sang zoneless
-ng generate @angular/core:zoneless
+# Angular 21: chạy ng update — CLI tự thêm provideZoneChangeDetection()
+# và gợi ý migration onpush_zoneless_migration khi phù hợp
+ng update @angular/cli @angular/core
 ```
+
+> ℹ️ Migration `onpush_zoneless_migration` (MCP/lschematics) hỗ trợ chuyển các component sang `OnPush` + zoneless. Tên schematic có thể khác nhau theo version CLI — chạy `ng update` để CLI gợi ý lệnh đúng cho project của bạn.
 
 ## So sánh trước và sau Angular 21
 
 ### Trước Angular 21 — Zone.js là Default
 
 ```typescript
-// main.ts
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
-import { AppModule } from './app/app.module';
+// app.config.ts (Angular 20 trở về trước, standalone)
+import { provideZoneChangeDetection } from '@angular/core';
 
-platformBrowserDynamic().bootstrapModule(AppModule)
-  .catch(err => console.error(err));
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter(routes),
+  ]
+};
 ```
 
-```json
-// angular.json — zone.js được include mặc định
-{
-  "scripts": [
-    "node_modules/zone.js/bundles/zone.umd.js"
-  ]
-}
+```typescript
+// main.ts — bootstrap standalone (không dùng NgModule từ v17+)
+import { bootstrapApplication } from '@angular/platform-browser';
+import { appConfig } from './app/app.config';
+import { AppComponent } from './app/app.component';
+
+bootstrapApplication(AppComponent, appConfig)
+  .catch(err => console.error(err));
 ```
 
 ### Sau Angular 21 — Zoneless là Default
 
 ```typescript
-// main.ts — bootstrap với zoneless
+// main.ts — bootstrap với zoneless (không đổi)
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app.component';
@@ -72,12 +79,14 @@ bootstrapApplication(AppComponent, appConfig)
 ```
 
 ```typescript
-// app.config.ts — không cần provideZoneChangeDetection
-export const appConfig: AppConfig = {
+// app.config.ts — zoneless: dùng provideZoneChangeDetection()
+// (ng update tự thêm khi migrate; project mới đã có sẵn)
+import { provideZoneChangeDetection } from '@angular/core';
+
+export const appConfig: ApplicationConfig = {
   providers: [
-    // Zoneless — zone.js không cần thiết
+    provideZoneChangeDetection(),
     provideRouter(routes),
-    provideHttpClient(),
   ]
 };
 ```
