@@ -75,6 +75,8 @@ provideHttpClient();
 provideHttpClient(withXhr());
 ```
 
+📄 [Chi tiết →](12_fetch-backend-default/README.md)
+
 ### 13. Router: Navigation API + `withComponentInputBinding` Options
 `withComponentInputBinding()` nhận thêm param `options`: `{ queryParams, unmatchedInputBehavior }`. Tắt bind queryParams khi tự quản lý query riêng; `unmatchedInputBehavior: 'undefinedIfStale'` tránh set `undefined` cho inputs chưa từng có trong router data.
 
@@ -86,6 +88,8 @@ provideRouter(routes,
   withComponentInputBinding({ unmatchedInputBehavior: 'undefinedIfStale' }),
 );
 ```
+
+📄 [Chi tiết →](13_router-input-binding-options/README.md) · [Params inheritance →](6_router-params-inheritance/README.md)
 
 ## Bảng Tổng Kết
 
