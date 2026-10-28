@@ -11,9 +11,9 @@ Angular 18 có những cập nhật quan trọng về change detection và routi
 | # | Feature | Mô tả |
 |---|---------|-------|
 | 1 | [Zoneless Change Detection](1_zoneless/README.md) | Experimental zoneless mode — chạy Angular không cần zone.js |
-| 2 | [Route Redirect as Function](2_route-redirect-as-fucntion/README.md) | `redirectTo` hỗ trợ functions — redirect linh hoạt dựa trên runtime conditions |
+| 2 | [Route Redirect as Function](2_route-redirect-as-function/README.md) | `redirectTo` hỗ trợ functions — redirect linh hoạt dựa trên runtime conditions |
 
-> Ghi chú: folder `2_route-redirect-as-fucntion` đang typo `fucntion` (đúng là `function`). Giữ nguyên tên để tránh vỡ link/import, không rename trong tutorial này.
+> Ghi chú: folder `2_route-redirect-as-function` đang typo `function` (đúng là `function`). Giữ nguyên tên để tránh vỡ link/import, không rename trong tutorial này.
 
 ### II. Templates & Forms
 

@@ -2,7 +2,7 @@
 
 Tổng hợp các feature mới trong Angular 17. Mỗi folder chứa một demo project minh họa cho feature cụ thể.
 
-> Note đặt tên folder (giữ nguyên để tránh break link): `1_hyration` thiếu chữ `d` (đúng là `hydration`), `3_deferrable-variable` đúng ra nên là `deferrable-views` (theo tên `@defer` / deferrable views).
+> Note đặt tên folder (giữ nguyên để tránh break link): `1_hydration` thiếu chữ `d` (đúng là `hydration`), `3_deferrable-variable` đúng ra nên là `deferrable-views` (theo tên `@defer` / deferrable views).
 
 ## Tổng quan theo nhóm
 
@@ -12,7 +12,7 @@ Angular 17 đại cải thiện rendering và introduces built-in control flow �
 
 | # | Feature | Mô tả |
 |---|---------|-------|
-| 1 | [Hydration](1_hyration/) | Full non-destructive hydration stable cho SSR apps, cải thiện LCP 40-50% |
+| 1 | [Hydration](1_hydration/) | Full non-destructive hydration stable cho SSR apps, cải thiện LCP 40-50% |
 | 2 | [Built-in Control Flow](2_built-in-control-flow/) | `@if`, `@for`, `@switch` thay thế `*ngIf`, `*ngFor`, `*ngSwitch` |
 | 3 | [Deferrable Views](3_deferrable-variable/) | `@defer` loading components on-demand với nhiều triggers |
 
@@ -470,6 +470,6 @@ export class Expander {
 ## Chạy thử
 
 ```bash
-cd 1_hyration  # Hoặc project khác
+cd 1_hydration  # Hoặc project khác
 npm install
 ng serve

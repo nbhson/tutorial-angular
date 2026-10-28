@@ -1,75 +1,238 @@
-# Server-side rendering (SSR) with Angular Universal
+# SSR với @angular/ssr (thay thế Angular Universal)
 
-## Cơ chế server-side rendering
+> Nguồn: https://angular.dev/guide/ssr — https://angular.dev/guide/hydration — https://angular.dev/tools/cli/ssr
 
-Gọi nó là server-side rendering là vì phần lớn logic sẽ được xử lý ở server:
+## Angular Universal đã được thay thế
 
-- Khi người dùng vào một trang web, trình duyệt sẽ gửi GET request tới web server
-- Web server sẽ nhận request, đọc dữ liệu từ database.
-- Web server sẽ render HTML, trả về cho browser để hiển thị cho người dùng
+`@nguniversal/*` packages (Angular Universal) đã ngừng phát triển từ Angular 19 và được thay thế chính thức bằng **`@angular/ssr`** — server-side rendering tích hợp sẵn vào Angular CLI và ApplicationBuilder (esbuild). Tên gọi chính thức hiện nay là **Server-Side Rendering (SSR)**, không còn "Angular Universal".
 
-![diagram-serversiderendered.webp](src/assets/diagram-serversiderendered.webp)
+```
+Angular ≤ 16:   @nguniversal/express-engine (riêng biệt, config tay)
+Angular 17+:    @angular/ssr (tích hợp CLI, `ng add @angular/ssr`)
+Angular 22:     @angular/ssr + hybrid rendering (RenderMode per route)
+```
 
-### Ưu điểm
+## CSR vs SSR vs SSG — khi nào dùng gì
 
-Ra đời đã lâu, server side rendering đã được sử dụng, cải tiến rất nhiều (Caching, CDN). Những ưu điểm của cơ chế này:
+| | CSR | SSR | SSG (Prerender) |
+|---|---|---|---|
+| Render | Client (browser) | Server, mỗi request | Server, lúc build |
+| TTFB | Chậm hơn (JS phải tải + chạy) | Nhanh | Nhanh nhất (static) |
+| SEO | Kém (bot cần chạy JS) | Tốt | Rất tốt |
+| Tải server | Thấp | Cao (mỗi request render) | Gần như không (CDN) |
+| Phù hợp | Dashboard, app nội bộ | Trang động cá nhân hoá | Trang nội dung (blog, landing, docs) |
 
-- Initial load nhanh, dễ otpimize, vì toàn bộ dữ liệu đã được xử lý ở server. Client chỉ việc hiển thị.
-- Các web framework từ xưa đến nay đều hỗ trợ cơ chế này
-- Dễ hiểu và dễ code hơn. Developer chỉ cần code 1 project web là được, không cần phải tách ra front-end và back-end
-- SEO tốt vì khi bot của Google, Bing vào web sẽ thấy toàn bộ dữ liệu dưới dạng HTML.
-- Chạy được trên phần lớn mọi trình duyệt, kể cả disable JavaScript vẫn chạy tốt
+**Hybrid rendering**: mỗi route chọn một chế độ — trang landing prerender, trang `/products/:id` SSR, trang `/dashboard` CSR.
 
-### Nhược điểm
+## Thiết lập với Angular CLI
 
-- Mỗi lần người dùng chuyển trang là site phải load lại nhiều lần, gây khó chịu
-- Tương tác không tốt như Client Side rendering vì trang phải refresh, load lại nhiều lần.
-- Nặng server vì server phải xử lý nhiều logic và dữ liệu. Có thể sử dụng caching để giảm tải.
-- Tốn băng thông vì server phải gửi nhiều dữ liệu thừa và trùng  (HTML, header, footer). Có thể sử dụng CDN để giảm tải.
+```bash
+# Project mới
+ng new my-app --ssr
 
+# Project cũ
+ng add @angular/ssr
+```
 
-## Cơ chế client-side rendering
+Lệnh này tự sinh:
+- `app.config.server.ts` — config server, `provideServerRendering`
+- `app.routes.server.ts` — khai báo `RenderMode` cho từng route
+- `main.server.ts` — bootstrap server-side
+- Server Express (trong `server.ts`) — có thể deploy với Node hoặc serverless
 
-Thế rồi, ở những năm 2010, với sự phát triển của JavaScript và AJAX, cơ chế client-side rendering bắt đầu được sử dụng.
+## app.routes.server.ts — hybrid rendering
 
-Developer bắt đầu build ứng dụng dưới dạng SPA – Single Page Application. Ứng dụng nằm trong 1 page duy nhất nên được gọi là Single Page Application.
+```typescript
+// app.routes.server.ts
+import {
+  RenderMode,
+  ServerRoute,
+  PrerenderFallback,
+} from '@angular/ssr';
 
-Client Side Rendering tức là việc render HTML, CSS sẽ được thực hiện ở client (Tức JavaScript ở trình duyệt)
+export const serverRoutes: ServerRoute[] = [
+  // Trang nội dung tĩnh → build một lần, deploy static
+  { path: '', renderMode: RenderMode.Prerender },
+  { path: 'about', renderMode: RenderMode.Prerender },
 
-![sharepoint-2013-clientside-rendering-csr-jslink-templates-10-638.webp](src/assets/sharepoint-2013-clientside-rendering-csr-jslink-templates-10-638.webp)
+  // Trang động theo tham số — render lúc request
+  {
+    path: 'post/:id',
+    renderMode: RenderMode.Prerender,
+    fallback: PrerenderFallback.Client, // nếu prerender thất bại → CSR
+    // Angular tự gọi hàm này để biết danh sách tham số cần prerender
+    async getPrerenderParams() {
+      const svc = inject(PostService);
+      const ids = await svc.getIds();
+      return ids.map((id) => ({ id }));
+    },
+  },
 
-### Ưu điểm
+  // Trang cần request-time data → SSR
+  { path: 'search', renderMode: RenderMode.Server },
 
-Ra mắt sau nên Client Side Rendering giải quyết được một số vấn đề của server side rendering:
+  // Dashboard nội bộ → CSR thuần
+  { path: '**', renderMode: RenderMode.Client },
+];
+```
 
-- Page chỉ cần load một lần duy nhất. Khi user chuyển trang hoặc thêm dữ liệu, JavaScript sẽ lấy và gửi dữ liệu từ server qua AJAX. User có thể thấy dữ liệu mới mà không cần chuyển trang.
-- Chuyển logic sang client nên giảm tải được một phần cho server.
-- Giảm được băng thông do chỉ cần lấy JSON và dữ liệu cần thiết, thay vì phải lấy toàn bộ trang
-- Với các ứng dụng cần tương tác nhiều, SPA hoạt động mượt mà hơn vì code chạy trên browser, không cần load đi loại lại nhiều
+```typescript
+// app.config.server.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideServerRendering, withRoutes } from '@angular/ssr';
+import { serverRoutes } from './app.routes.server';
 
-### Nhược điểm
+const serverConfig: ApplicationConfig = {
+  providers: [provideServerRendering(withRoutes(serverRoutes))],
+};
 
-- Initial load sẽ chậm hơn nếu không biết optimize. Lý do là broser phải tải toàn bộ JavaScript về (khá nặng), parse và chạy JS, gọi API để lấy dữ liệu từ server (chậm), sau đó render dữ liệu
-- Đòi hỏi project phải chia làm 2 phần riêng là back-end (REST api) và front-end nên khó code hơn
-- Không chạy được nếu JavaScript bị disable, hoặc ở các trình duyệt cũ không nhận JavaScript ES6 (Có thể dùng transpiler và polyfill nhưng sẽ làm tăng kích cỡ file js)
-- SEO không tốt bằng Server Side Rendering (Do bot crawl không đọc được dữ liệu). Để giải quyết, ta phải kết hợp thêm SSR (Bot mới của Google đọc được client-side rendering rồi).
-Nếu client sử dụng mobile, device yếu thì khi load sẽ bị chậm
+export const config = mergeApplicationConfig(appConfig, serverConfig);
+```
 
+```typescript
+// app.config.ts — client, bật hydration
+import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
+import { provideClientHydration, withHttpTransferCacheOptions } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 
-## Angular Universal
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes),
+    provideZonelessChangeDetection(),
+    provideClientHydration(
+      withHttpTransferCacheOptions({
+        includeHeaders: ['ETag', 'Cache-Control'],
+        includePostRequests: true,
+      }),
+    ),
+  ],
+};
+```
 
-### What is Angular Universal?
+## Hydration — tránh "flash" và re-render
 
-Ứng dụng Angular là một Ứng dụng một trang (single page application) - nó chạy trong trình duyệt của khách hàng. 
-Tuy nhiên, bạn cũng có thể chạy ứng dụng Angular của bạn trên server bằng Angular Universal. 
+Sau khi server trả HTML, client Angular **hydrates** — gắn event listener và dữ liệu lên DOM có sẵn thay vì render lại từ đầu:
 
-### How does Angular Universal work?
+- **Không hydration**: server render HTML → client tải JS → **xoá DOM và render lại** → flash nội dung, layout shift.
+- **Có hydration**: client nhận diện DOM có sẵn, tái sử dụng trực tiếp — mượt hơn đáng kể về CLS/LCP.
 
-Với Angular Universal, server sẽ hiển thị trước các trang (html css) và hiển thị cho user của bạn nội dung nào đó, trong khi ứng dụng phía client tải ở chế độ nền. 
-Sau đó, khi mọi thứ đã sẵn sàng ở phía client, nó sẽ chuyển đổi liền mạch từ hiển thị các trang do server hiển thị sang ứng dụng phía client
+```typescript
+// Cấu hình hydration tối giản
+provideClientHydration()
 
-### Why Angular Universal?
+// Với incremental hydration (Angular 19+, ổn định ở v22):
+// chỉ hydrate section khi cần, phần còn lại giữ tĩnh
+```
 
-- Improve performance on mobile and low-powered devices
-- Search Engine Optimization (tối ưu hóa công cụ tìm kiếm - SEO)
-- Social Media Crawlers (Trình thu thập thông tin truyền thông xã hội)
+```html
+<!-- @defer kết hợp hydration -->
+@defer (hydrate on viewport) {
+  <app-heavy-comments [postId]="postId()" />
+} @placeholder {
+  <div class="comments-skeleton"></div>
+}
+```
+
+Lợi ích incremental hydration so với hydration toàn trang: chỉ hydrate phần nhìn thấy (viewport), các phần còn lại giữ là HTML tĩnh đến khi người dùng tương tác — giảm JS chạy lúc đầu.
+
+## Viết code tương thích server
+
+```typescript
+// ❌ LỖI khi SSR: window/document không tồn tại trên Node
+@Component({...})
+export class MyComponent {
+  ngOnInit() {
+    console.log(window.innerWidth);
+  }
+}
+
+// ✅ sauNextRender — chạy chỉ ở client, sau khi render
+export class MyComponent {
+  private el = inject(ElementRef);
+
+  constructor() {
+    afterNextRender(() => {
+      // an toàn để dùng window ở đây
+      this.setupChart(this.el.nativeElement);
+    });
+  }
+}
+
+// ✅ DOCUMENT token — thay document trực tiếp
+export class MyComponent {
+  private document = inject(DOCUMENT);
+  title = this.document.title;
+}
+```
+
+```typescript
+// HTTP state — dùng với HttpClient + provideServerRendering
+// Angular tự chờ Promise/Observable trả về, rồi render với data có sẵn
+this.http.get('/api/products').subscribe(); // SSR tự xử lý
+```
+
+### `REQUEST` token — đọc thông tin request từ server
+
+```typescript
+import { REQUEST } from '@angular/ssr'; // hoặc REQUEST_CONTEXT
+
+export class SeoComponent {
+  private request = inject(REQUEST);
+  userAgent = this.request.headers.get('user-agent');
+}
+```
+
+## Build và deploy
+
+```bash
+ng build                    # build cả client + server
+node dist/my-app/server/server.mjs   # chạy server Node
+```
+
+```json
+// angular.json — SSR builder
+{
+  "projects": {
+    "my-app": {
+      "architect": {
+        "server": {
+          "builder": "@angular-devkit/build-angular:server-application",
+          "options": {
+            "outputPath": "dist/my-app/server",
+            "main": "src/main.server.ts",
+            "tsConfig": "tsconfig.app.json"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Deploy với Docker / Cloud Run / Vercel / Netlify (Angular preset tự nhận diện SSR). Trước khi deploy, chạy `ng build` và test server locally.
+
+## Chuyển từ Angular Universal cũ sang @angular/ssr
+
+```bash
+# 1. Xoá dependency cũ
+npm uninstall @nguniversal/express-engine @nguniversal/builders
+
+# 2. Cài mới
+ng add @angular/ssr
+```
+
+Cần review lại: custom Express server (nếu có), config route render mode, hydration setting.
+
+## Checklist
+
+- [ ] Chọn RenderMode per route (Prerender/Server/Client), không để toàn bộ SSR một cách vô bổ.
+- [ ] Bật `provideClientHydration()`.
+- [ ] Không dùng `window`/`document` trong `ngOnInit` — dùng `afterNextRender`/`DOCUMENT`/`isPlatformBrowser`.
+- [ ] Đã test chạy SSR (`ng build && node dist/.../server.mjs`) trước khi deploy.
+
+## Tham khảo
+
+- [angular.dev — Server-side rendering](https://angular.dev/guide/ssr)
+- [angular.dev — Hydration](https://angular.dev/guide/hydration)
+- [angular.dev — Incremental hydration](https://angular.dev/guide/incremental-hydration)
+- [Bài 25 — SSR & Hybrid v22](../25-ssr-hybrid-v22/README.md)

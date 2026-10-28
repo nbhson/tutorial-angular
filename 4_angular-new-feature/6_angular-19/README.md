@@ -32,7 +32,7 @@ Nâng cấp hệ thống routing và DI:
 |---|---------|-------|
 | 7 | [Router Outlet Data](7_router-outlet-data/README.md) | `[routerOutletData]` input — truyền Signal data từ parent xuống routed child |
 | 8 | [Query Param Handling](8_query-param-handling/README.md) | Default query params strategy qua `withRouterConfig()` |
-| 9 | [Initializer Provider Function](9_initialer-provider-function/README.md) | `provideAppInitializer()` thay thế `APP_INITIALIZER` token |
+| 9 | [Initializer Provider Function](9_initializer-provider-function/README.md) | `provideAppInitializer()` thay thế `APP_INITIALIZER` token |
 
 ### IV. Developer Experience & Diagnostics
 

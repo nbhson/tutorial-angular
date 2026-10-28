@@ -7,7 +7,7 @@ Nguồn: https://blog.angular.dev/angular-v15-is-now-available-df7be7f2f4c8
 Trước: stack lẫn `zone.js/_ZoneDelegate/invokeTask/Zone.run/resolvePromise...` gây nhiễu.
 
 Sau: stack sạch, giữ lại frames có nghĩa (`fetch (async)`, `AppComponent_click_3_listener (app.component.html:4)`
-là template listener mapping – điểm giá trị nhất để定位 lỗi).
+là template listener mapping – điểm giá trị nhất để định vị lỗi).
 
 ```json
 ERROR Error: Uncaught (in promise): Error

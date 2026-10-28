@@ -229,7 +229,7 @@ export class ShadowComponent {}
 
 ## Best practices
 
-1. **Dùng `Emulated`** cho大多数 components
+1. **Dùng `Emulated`** cho phần lớn components
 2. **Dùng `None`** khi cần global styles
 3. **Dùng `ShadowDom`** cho independent widgets
 4. **CSS variables** để customize từ bên ngoài

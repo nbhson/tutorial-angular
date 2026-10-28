@@ -24,13 +24,13 @@ Angular 20 đẩy mạnh power cho template layer và upgrade routing system:
 
 | # | Feature | Mô tả |
 |---|---------|-------|
-| 1 | [`@let` in Templates](1_new-featue/1_new-feature-in-template/) | Khai báo biến cục bộ — ra mắt **v18.1**, KHÔNG phải v20 (nhắc lại để dùng đúng) |
-| 2 | [Async Redirect Function](1_new-featue/2_asynchronous-redirect-function/) | `redirectTo`/`RedirectFn` hỗ trợ async (`Promise`\|`Observable`) — mới v20 (#60863); sync function có từ trước |
-| 3 | [Abort Redirection](1_new-featue/3_abort-redirection/) | `Navigation.abort()` — mới v20 (#60380). KHÔNG có `.aborted` |
-| 4 | [`ngComponentOutlet`](1_new-featue/4_ng-component-outlet-DYNAMIC-COMPONENT/) | **Pre-existing (v14–v16)** — KHÔNG phải mới v20; v20 chỉ polish (input binding #60137, two-way #60342, outputs #60137) |
-| 5 | [`Injector.destroy()`](1_new-featue/5_injector-destroy/) | Mới v20 (#60054, `DestroyableInjector`) — xem https://angular.dev/api/core/Injector |
-| 6 | [Keepalive Fetch Requests](1_new-featue/6_keepalive-fetch-requests/) | `keepalive` là **flag native fetch per-request** (#60621): `http.get(url, { keepalive: true })` + `withFetch()`. KHÔNG có `withKeepalive()` |
-| 7 | [ScrollOptions ViewportScroller](1_new-featue/7_viewportscroller-scrolloptions/) | Đúng là `withInMemoryScrolling(options: InMemoryScrollingOptions)` + `ViewportScroller.scrollToPosition/scrollToAnchor(pos, ScrollOptions)` (#61002). KHÔNG có `withViewPortScroller({...scrollOffset})` |
+| 1 | [`@let` in Templates](1_new-feature/1_new-feature-in-template/) | Khai báo biến cục bộ — ra mắt **v18.1**, KHÔNG phải v20 (nhắc lại để dùng đúng) |
+| 2 | [Async Redirect Function](1_new-feature/2_asynchronous-redirect-function/) | `redirectTo`/`RedirectFn` hỗ trợ async (`Promise`\|`Observable`) — mới v20 (#60863); sync function có từ trước |
+| 3 | [Abort Redirection](1_new-feature/3_abort-redirection/) | `Navigation.abort()` — mới v20 (#60380). KHÔNG có `.aborted` |
+| 4 | [`ngComponentOutlet`](1_new-feature/4_ng-component-outlet-DYNAMIC-COMPONENT/) | **Pre-existing (v14–v16)** — KHÔNG phải mới v20; v20 chỉ polish (input binding #60137, two-way #60342, outputs #60137) |
+| 5 | [`Injector.destroy()`](1_new-feature/5_injector-destroy/) | Mới v20 (#60054, `DestroyableInjector`) — xem https://angular.dev/api/core/Injector |
+| 6 | [Keepalive Fetch Requests](1_new-feature/6_keepalive-fetch-requests/) | `keepalive` là **flag native fetch per-request** (#60621): `http.get(url, { keepalive: true })` + `withFetch()`. KHÔNG có `withKeepalive()` |
+| 7 | [ScrollOptions ViewportScroller](1_new-feature/7_viewportscroller-scrolloptions/) | Đúng là `withInMemoryScrolling(options: InMemoryScrollingOptions)` + `ViewportScroller.scrollToPosition/scrollToAnchor(pos, ScrollOptions)` (#61002). KHÔNG có `withViewPortScroller({...scrollOffset})` |
 
 ### II. Developer Experience
 
@@ -101,6 +101,6 @@ Batch **stable trong v20** là `effect`, `linkedSignal` (#60741/#60865),
 ## Chạy thử
 
 ```bash
-cd 1_new-featue/1_new-feature-in-template  # Hoặc project khác
+cd 1_new-feature/1_new-feature-in-template  # Hoặc project khác
 npm install
 ng serve

@@ -251,7 +251,7 @@ changePersonName(value: string) {
 ```
 
 - Khi update giá trị qua `personForm`, model `person` **tự động sync** ngược lại
-- Đây là ưu điểm lớn — không cần手動 sync giữa form và model
+- Đây là ưu điểm lớn — không cần thủ công sync giữa form và model
 
 ## So sánh trước và sau Angular 21
 
@@ -362,14 +362,14 @@ console.log(this.productForm.name().value());
 // Kiểm tra validation
 console.log(this.productForm.name().errors());
 
-// Kiểm tra整个 form
+// Kiểm tra toàn bộ form
 console.log(this.productForm().invalid());
 ```
 
 ## Best Practices
 
 1. **Hiểu rõ Signals trước khi dùng Signal Forms** — Signal Forms dựa hoàn toàn trên Signal system
-2. **Schema validation nên được define ở component class** — Giữ template sạch, validation logic集中 ở class
+2. **Schema validation nên được define ở component class** — Giữ template sạch, validation logic tập trung ở class
 3. **Dùng `@for` với `errors()` để display errors** — Cleaner so với `@if` conditions
 4. **Đợi stable release trước khi dùng production** — API hiện tại là experimental
 

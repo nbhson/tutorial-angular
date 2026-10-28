@@ -1,6 +1,6 @@
 # SSR & Hybrid Rendering v22 (CSR/SSR/SSG + Hydration)
 
-> Nguồn: https://angular.dev/guide/ssr, /guide/hydration, /guide/incremental-hydration — repo cũ chỉ có `8-angular-universal`, `4_angular-17/1_hyration`
+> Nguồn: https://angular.dev/guide/ssr, /guide/hydration, /guide/incremental-hydration — repo cũ chỉ có `8-angular-universal`, `4_angular-17/1_hydration`
 
 ## Tổng quan
 Mặc định app là CSR. Hybrid rendering cho phép chọn từng route: `Client` (CSR), `Server` (SSR), `Prerender` (SSG), cấu hình trong `app.routes.server.ts` bằng `RenderMode`.

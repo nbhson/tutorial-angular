@@ -1,27 +1,27 @@
 # FxLayout
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 10.1.0.
+> Demo gốc được sinh bằng Angular CLI v10. Các câu lệnh dưới đây đã chuẩn hoá theo Angular CLI v22 — xem [CLI Reference](https://angular.dev/cli).
 
 ## Development server
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+`ng serve` khởi động dev server tại `http://localhost:4200/`. Ứng dụng tự reload khi bạn thay đổi source (HMR).
 
 ## Code scaffolding
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+`ng generate component component-name` (viết tắt `ng g c`). Cũng hỗ trợ `directive|pipe|service|class|guard|interface|enum`.
 
 ## Build
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+`ng build` build ra thư mục `dist/`. Build production dùng `ng build --configuration production` — flag cũ `--prod` đã bị xoá từ Angular 15.
 
 ## Running unit tests
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+`ng test` chạy unit test bằng **Vitest** — mặc định từ Angular 21, thay thế Karma.
 
 ## Running end-to-end tests
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
+`ng e2e` cần cài thêm package E2E (Cypress hoặc Playwright). Protractor đã bị loại bỏ khỏi Angular.
 
 ## Further help
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+Dùng `ng help` hoặc xem [Angular CLI Reference](https://angular.dev/cli).

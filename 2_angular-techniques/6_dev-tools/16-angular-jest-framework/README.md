@@ -1,183 +1,233 @@
-# JEST FRAMEWORK
+# Unit Test với Vitest (thay thế Jest/Karma)
 
-## 1. Lợi ích của Unit test
+> Nguồn: https://angular.dev/guide/testing — https://angular.dev/cli/test — blog.angular.dev "Angular v21: Vitest by default"
 
-- **Cải thiện design**: Bắt tay vào code mà không để ý quá nhiều đến design là một lỗi phổ biến của các developer, việc viết unit test sẽ bắt buộc bạn phải suy nghĩ, thậm chí nghĩ đi nghĩ lại về design
-- **Dễ dàng refactor**: bởi vì bạn đã có các case test đảm bảo code của bạn chạy đúng như mong đợi, bạn có thể dễ dàng refactor code mà không lo sẽ tạo ra những bug mới
-- **Thêm tính năng mới mà không làm ảnh hưởng đến các tính năng cũ**: thêm code mới mà chạy test thấy đỏ là biết sai rồi nhé :v
-- **Test là một tài liệu về spec**: nếu viết test chuẩn và đủ case, thì chỉ cần đọc test, ta cũng có thể hiểu rõ spec còn nhanh hơn cả đọc code
-- **Việc viết test giúp developer tự tin hơn**
+## Vitest là runner mặc định
 
-## 2. JEST là gì?
+Từ **Angular v21**, **Vitest** là test runner **mặc định** cho project mới (`ng new`) — thay thế Karma/Jasmine (deprecated từ v20, xoá hoàn toàn ở v21+). Lý do:
 
-**Jest** is a JavaScript Testing Framework with a focus on simplicity.
-It works with projects using: Babel, TypeScript, Node, React, Angular, Vue and more
+- Chạy trên **Node + Vite**, không cần browser thật (Chromedriver, headless Chrome) → khởi động gần như tức thì.
+- Watch mode và HMR nhanh hơn nhiều lần so với Karma.
+- API tương tự Jest (`describe`, `it`, `expect`) — code test cũ chuyển sang gần như không đổi.
+- Hỗ trợ **zoneless testing** (bắt buộc với app zoneless từ v21+).
 
-**Karma**: là một Javascript tool được sử dụng để load ứng dụng và thực thi test của bạn. Karma sẽ được thực thi bằng dòng lệnh và sẽ hiển thị kết quả cho bạn.
+> Thứ tự sử dụng: **Vitest (mặc định v21+)** → Jest (tùy chọn v21) → Karma (đã xoá khỏi v21).
 
-## 3. Tại sao lại dùng JEST
+## Project mới (Angular v22)
 
-- **ZERO CONFIG**
-  Jest aims to work out of the box, config free on most JavaScript projects.
-
-- **SNAPSHOTS**
-  Make tests which keep track of large objects with ease. Snapshots live either alongside your tests, or embedded inline.
-
-- **GREATE API**
-  From it to expect - Jest has the entire _(toàn bộ)_ toolkit in one place. Well documented, well maintained, well good.
-
-- **FAST AND SAFE**
-  By ensuring your tests have unique _(duy nhất)_ global state, Jest can reliably run tests in parallel. To make things quick, Jest runs previously failed tests first and re-organizes runs based on how long test files take.
-
-- **CODE COVERAGE**
-  Generate code coverage by adding the flag --coverage. No additional setup needed. Jest can collect code coverage information from entire projects, including untested files.
-
-- **EASY MOCKING**
-  Jest uses a custom resolver for imports in your tests, making it simple to mock any object outside of your test’s scope. You can use mocked imports with the rich Mock Functions API to spy on function calls with readable test syntax.
-
-  Jest is a JavaScript testing framework designed to ensure correctness of any JavaScript codebase. It allows you to write tests with an approachable, familiar and feature-rich API that gives you results quickly.
-
-  Jest is well-documented, requires little configuration and can be extended to match your requirements.
-
-## 4. Cài đặt JEST
-
-- B1: Loại bỏ jasmine và karma: `npm uninstall @types/jasmine jasmine-core karma karma-chrome-launcher karma-coverage karma-jasmine karma-jasmine-hterage karma-jasmine karma-jasmine-html-reporter`
-
-- B2: Remote `test` property trong angular.json
-
-- B3: Delete file `karma.conf.js` và `src/test.ts`
-
-- B4: Install jest: `npm i jest @types/jest jest-preset-angular`
-
-- B5: Tạo file `src/setup.jest.ts` và thêm `import 'jest-preset-angular/setup-jest';`
-
-- B6: Sửa tsconfig.spec.json:
-
-  - `"types": ["jasmine"]` to `"types": ["jest", "node"]`
-  - `"files": "src/test.ts"` to `"files": "src/setup.jest.ts"`
-
-- B7: Thêm vào file package.json
+```bash
+ng new my-app
+# Vitest được cài sẵn — chạy được ngay
+ng test
+```
 
 ```json
-"scripts": {
-  "test": "jest",
-  "test:watch": "jest --watch",
-  "test:coverage": "jest --coverage"
-}
-"jest": {
-  "preset": "jest-preset-angular",
-  "setupFilesAfterEnv": [
-    "<rootDir>/src/setup.jest.ts"
-  ],
-  "testPathIgnorePatterns": [
-    "<rootDir>/node_modules/",
-    "<rootDir>/dist"
-  ],
-  "globals": {
-    "ts-jest": {
-      "tsconfig": "<rootDir>/tsconfig.spec.json",
-      "stringifyContentPathRegex": "\\.html$",
-      "diagnostics": {
-          "ignoreCodes": [
-            "TS151001"
-          ]
+// angular.json (mặc định v22)
+{
+  "projects": {
+    "my-app": {
+      "architect": {
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "::development",
+            "watch": false,
+            "coverage": true
+          }
         }
+      }
     }
   }
 }
 ```
 
-## Matchers
+## Ví dụ test cơ bản
 
-### Common matchers
+```typescript
+// app.component.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { AppComponent } from './app.component';
 
-- `.toBe` uses Object.is to test exact equality: sử dụng cho kiểu tham trị
-- `.toEqual`: sử dụng cho kiểu tham chiếu (object, array,...)
+describe('AppComponent', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
 
-### Truthiness
+  it('should create the app', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    expect(fixture.componentInstance).toBeTruthy();
+  });
 
-- `.not`: dùng cho việc phủ định
-- `.toBeNull` matches only null
-- `.toBeUndefined` matches only undefined
-- `.toBeTruthy` matches anything that an if statement treats as true
-- `.toBeFalsy` matches anything that an if statement treats as false
-
-### Numbers
-
-`.toBeGreaterThan`: lớn hơn
-`.toBeGreaterThanOrEqual`: lớn hơn bằng
-`.toBeLessThan`: nhỏ hơn
-`.toBeLessThanOrEqual`: nhỏ hơn bằng
-
-### Strings
-
-- `.toMatch`: check strings against regular expressions
-
-### Arrays and iterables
-
-- `.toContain`: check if an array or iterable contains a particular item
-
-### Exceptions
-
-- `.toThrow`: test whether a particular function throws an error when it's called
-
-## Testing Asynchronous Code
-
-### Promises
-
-```js
-test("the data is peanut butter", () => {
-  return fetchData().then((data) => {
-    expect(data).toBe("peanut butter");
+  it('should render title', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('h1')?.textContent).toContain('Hello');
   });
 });
 ```
 
-### Async/Await
+## Matchers (giữ nguyên từ Jest/Jasmine)
 
-```js
-test("the data is peanut butter", async () => {
-  const data = await fetchData();
-  expect(data).toBe("peanut butter");
+```typescript
+// Tham trị
+expect(a).toBe(5);             // Object.is
+// Tham chiếu
+expect(obj).toEqual({ a: 1 }); // deep equal
+
+// Truthiness
+expect(x).toBeNull();
+expect(x).toBeUndefined();
+expect(x).toBeTruthy();
+expect(x).toBeFalsy();
+expect(x).not.toBeTruthy();
+
+// Số
+expect(n).toBeGreaterThan(3);
+expect(n).toBeGreaterThanOrEqual(3.5);
+expect(x).toBeLessThan(5);
+
+// Chuỗi
+expect('Angular v22').toMatch(/v22/);
+expect('hello world').toContain('world');
+
+// Array/iterable
+expect([1, 2, 3]).toContain(2);
+
+// Exception
+expect(() => dangerousFn()).toThrow();
+expect(() => parse('bad')).toThrow(InvalidFormatError);
+```
+
+## Async testing
+
+```typescript
+// async/await
+test('tải user', async () => {
+  const user = await userService.find(1);
+  expect(user.name).toBe('An');
 });
 
-test("the fetch fails with an error", async () => {
-  expect.assertions(1);
-  try {
-    await fetchData();
-  } catch (e) {
-    expect(e).toMatch("error");
-  }
-});
+// resolves / rejects
+await expect(fetchData()).resolves.toBe('ok');
+await expect(fetchData()).rejects.toMatch('error');
 
-test("the data is peanut butter", async () => {
-  await expect(fetchData()).resolves.toBe("peanut butter");
-});
+// Vitest timers (thay thế jest.useFakeTimers)
+import { vi } from 'vitest';
+vi.useFakeTimers();
+setTimeout(() => callback(), 1000);
+vi.advanceTimersByTime(1000);
+```
 
-test("the fetch fails with an error", async () => {
-  await expect(fetchData()).rejects.toMatch("error");
+## Test component với signals (Angular 22)
+
+```typescript
+import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+
+describe('CounterComponent', () => {
+  it('tăng giá trị khi click', async () => {
+    await TestBed.configureTestingModule({
+      imports: [CounterComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(CounterComponent);
+    await fixture.whenStable();
+
+    const btn = fixture.nativeElement.querySelector('button');
+    btn.click();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain('1');
+  });
 });
 ```
 
-### Callbacks
+> Với zoneless testing, `fixture.detectChanges()` trở thành không bắt buộc — Angular tự kích hoạt CD qua signal. `await fixture.whenStable()` là cách đợi async renderer hoàn tất.
 
-```js
-test("the data is peanut butter", (done) => {
-  function callback(error, data) {
-    if (error) {
-      done(error);
-      return;
-    }
-    try {
-      expect(data).toBe("peanut butter");
-      done();
-    } catch (error) {
-      done(error);
-    }
-  }
+## TestBed — DI và mock
 
-  fetchData(callback);
+```typescript
+describe('UserService', () => {
+  let service: UserService;
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(), // thay thế HttpTestingController cũ
+      ],
+    });
+    service = TestBed.inject(UserService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  it('gọi API đúng endpoint', () => {
+    service.getAll().subscribe();
+    const req = httpMock.expectOne('/api/users');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 1, name: 'An' }]);
+  });
 });
 ```
 
-<https://codecraft.tv/courses/angular/unit-testing/dependency-injection/>
+## So sánh Karma / Jest / Vitest
+
+| | Karma (≤ v20) | Jest (tùy chọn) | **Vitest (mặc định v21+)** |
+|---|---|---|---|
+| Environment | Browser thật | jsdom (Node) | Node hoặc browser |
+| Tốc độ khởi động | Chậm (10–30s) | Trung bình | Rất nhanh (<1s) |
+| HMR cho test | ❌ | ❌ | ✅ |
+| Cấu hình | karma.conf.js + test.ts | jest.config.ts | Tích hợp sẵn CLI |
+| Coverage | Phải cấu hình | `--coverage` | `ng test --coverage` |
+| Snapshot | Không | ✅ | ✅ |
+
+## Di chuyển từ Jest sang Vitest
+
+```bash
+# Angular cung cấp schematic chuyển đổi (từ v21)
+ng generate @schematics/angular:refactor-jasmine-vitest  # Jasmine→Vitest
+ng update @angular/cli@22                                # migration tự động
+```
+
+Xoá config Jest cũ (`jest.config.ts`, `setup-jest.ts`), Vitest dùng `vite.config`/`angular.json` — không cần file config riêng cho case chuẩn.
+
+```bash
+# Gỡ jest-related packages nếu có
+npm uninstall jest @types/jest jest-preset-angular @types/jest
+```
+
+## Debug một test cụ thể
+
+```bash
+ng test --include='**/user.service.spec.ts'
+ng test --watch            # chạy lại khi file đổi
+ng test --coverage         # tính độ bao phủ
+ng test --browsers=chromium  # nếu chạy với browser mode
+```
+
+## Lỗi thường gặp
+
+- **`Zone is required`** — app bật zoneless nhưng test file thiếu `provideZonelessChangeDetection()`.
+- **"document is not defined"** — cần bật môi trường jsdom/happy-dom trong Vitest config (schematic đã cấu hình, chỉ cần biết khi tự viết).
+- **Test service qua HttpClient không chạy** — thiếu `provideHttpClientTesting()` trong providers.
+- **Timeout khi test async** — dùng `await fixture.whenStable()` thay vì chỉ `fixture.detectChanges()`.
+
+## Checklist
+
+- [ ] Đang dùng Vitest (không còn Karma/Jasmine).
+- [ ] File test đặt cạnh source (`*.spec.ts`).
+- [ ] Đã bật `provideZonelessChangeDetection()` trong TestBed cho app zoneless.
+- [ ] Coverage bật với `ng test --coverage`.
+
+## Tham khảo
+
+- [angular.dev — Testing](https://angular.dev/guide/testing)
+- [Vitest — vitest.dev](https://vitest.dev)
+- [Bài 10 — Vitest mặc định từ Angular 21](../../4_angular-new-feature/8_angular-21/10_vitest-default/README.md)
